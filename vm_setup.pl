@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.2.7';
+my $VERSION = '0.3.0';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $answer);
@@ -42,6 +42,9 @@ if ($help) {
     print "- Fixes screen permissions\n";
     print "- Runs cpkeyclt\n";
     print "- Creates test accounts\n";
+    print "- Disables cphulkd\n";
+    print "- Creates access hash\n";
+    print "- Updates motd\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Installs Task::Cpanel::Core (optional)\n\n";
@@ -87,6 +90,16 @@ sysopen (my $etc_hostname, '/etc/hostname', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_hostname "daily.cpanel.vm";
 close ($etc_hostname);
+
+# set /etc/sysconfig/network
+print "updating /etc/sysconfig/network\n";
+unlink '/etc/sysconfig/network';
+sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
+    die print_formatted ("$!");
+    print $etc_network "NETWORKING=yes\n" .
+                     "NOZEROCONF=yes\n" .
+                     "HOSTNAME=daily.cpanel.vm\n";
+close ($etc_network);
 
 # add resolvers
 print "adding resolvers\n";
@@ -144,17 +157,18 @@ sysopen (my $etc_hosts, '/etc/hosts', O_WRONLY|O_CREAT) or
                      "$ip		daily daily.cpanel.vm\n";
 close ($etc_hosts);
 
-# update cplicense
-print "updating cpanel license\n";
-system_formatted ('/usr/local/cpanel/cpkeyclt');
-
 # fix screen perms
 print "fixing screen perms\n";
 system_formatted ('rpm --setperms screen');
 
+# make accesshash
+print "making access hash\n";
+$ENV{'REMOTE_USER'} = 'root';
+system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
+
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes|/scripts/wwwacct cptest.tld cptest cpanel1');
+system_formatted ('yes |/scripts/wwwacct cptest.tld cptest cpanel1 1000 x3 n y 10 10 10 10 10 10 10 n');
 print "creating test email - testing\@cptest.tld\n";
 system_formatted ('/scripts/addpop testing@cptest.tld cpanel1');
 print "creating test database - cptest_testdb\n";
@@ -168,7 +182,7 @@ print "mapping cptest_testuser and cptest_testdb to cptest account\n";
 system_formatted ("/usr/local/cpanel/bin/dbmaptool cptest --type mysql --dbusers 'cptest_testuser' --dbs 'cptest_testdb'");
 
 # upcp
-print "would you like to run upcp now? [n] ";
+print "would you like to run upcp now? [n] \n";
 if (!$full && !$fast) { 
     chomp ($answer = <STDIN>);
 }
@@ -178,7 +192,7 @@ if ($answer eq "y") {
 }
 
 # running another check_cpanel_rpms
-print "would you like to run check_cpanel_rpms now? [n] ";
+print "would you like to run check_cpanel_rpms now? [n] \n";
 if (!$full && !$fast) { 
     chomp ($answer = <STDIN>);
 }
@@ -188,7 +202,7 @@ if ($answer eq "y") {
 }
 
 # install Task::Cpanel::Core
-print "would you like to install Task::Cpanel::Core? [n] ";
+print "would you like to install Task::Cpanel::Core? [n] \n";
 if (!$full && !$fast) { 
     chomp ($answer = <STDIN>);
 }
@@ -202,10 +216,19 @@ unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
-                     "https://$ip:2087/login/?user=root&pass=cpanel1\n" .
-                     "https://$ip:2083/login/?user=cptest&pass=cpanel1\n" .
-                     "https://$ip:2096/login/?user=testing\@cptest.tld&pass=cpanel1\n\n"; 
+                     "https://IPADDR:2087/login/?user=root&pass=cpanel1\n" .
+                     "https://IPADDR:2083/login/?user=cptest&pass=cpanel1\n" .
+                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=cpanel1\n\n"; 
 close ($etc_motd);
+
+# disables cphulkd
+print "disables cphulkd\n";
+system_formatted ('/usr/local/cpanel/etc/init/stopcphulkd');
+system_formatted ('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
+
+# update cplicense
+print "updating cpanel license\n";
+system_formatted ('/usr/local/cpanel/cpkeyclt');
 
 # exit cleanly
 print "setup complete\n\n";
