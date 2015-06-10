@@ -101,12 +101,13 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
                      "HOSTNAME=daily.cpanel.vm\n";
 close ($etc_network);
 
-# add resolvers
+# add resolvers - WE SHOULD NOT BE USING GOOGLE DNS!!! (or any public resolvers)
 print "adding resolvers\n";
 unlink '/etc/resolv.conf';
 sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    print $etc_resolv_conf "nameserver 10.6.1.1\n" . "nameserver 8.8.8.8\n";
+    #print $etc_resolv_conf "nameserver 10.6.1.1\n" . "nameserver 8.8.8.8\n";
+    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.103\n";
 close ($etc_resolv_conf);
 
 # run /scripts/build_cpnat
