@@ -168,13 +168,13 @@ system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes |/scripts/wwwacct cptest.tld cptest cpanel1 1000 x3 n y 10 10 10 10 10 10 10 n');
+system_formatted ('yes |/scripts/wwwacct cptest.tld cptest p@55w0rd! 1000 x3 n y 10 10 10 10 10 10 10 n');
 print "creating test email - testing\@cptest.tld\n";
-system_formatted ('/scripts/addpop testing@cptest.tld cpanel1');
+system_formatted ('/scripts/addpop testing@cptest.tld p@55w0rd!');
 print "creating test database - cptest_testdb\n";
 system_formatted ("mysql -e 'create database cptest_testdb'");
 print "creating test db user - cptest_testuser\n";
-system_formatted ("mysql -e 'create user \"cptest_testuser\" identified by \"cpanel1\"'");
+system_formatted ("mysql -e 'create user \"cptest_testuser\" identified by \"p@55w0rd!\"'");
 print "adding all privs for cptest_testuser to cptest_testdb\n";
 system_formatted ("mysql -e 'grant all on cptest_testdb.* TO cptest_testuser'");
 system_formatted ("mysql -e 'FLUSH PRIVILEGES'");
@@ -217,8 +217,8 @@ sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
                      "https://IPADDR:2087/login/?user=root&pass=cpanel1\n" .
-                     "https://IPADDR:2083/login/?user=cptest&pass=cpanel1\n" .
-                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=cpanel1\n\n"; 
+                     "https://IPADDR:2083/login/?user=cptest&pass=p@55w0rd!\n" .
+                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=p@55w0rd!\n\n"; 
 close ($etc_motd);
 
 # disables cphulkd
