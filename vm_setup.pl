@@ -80,8 +80,8 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet bind-utils jwhois dev git]\n";
-system_formatted ("yum install mtr nmap telnet bind-utils jwhois dev git -y");
+print "installing utilities via yum [mtr nmap telnet nc bind-utils jwhois dev git]\n";
+system_formatted ("yum install mtr nmap telnet nc bind-utils jwhois dev git -y");
 
 # set hostname
 print "setting hostname\n";
@@ -125,6 +125,11 @@ close ($etc_whostmgrft);
 # correct wwwacct.conf
 print "correcting /etc/wwwacct.conf\n";
 unlink '/etc/wwwacct.conf';
+my $OSVER = `cat /etc/redhat-release`;
+my $MINUID=500;
+if ($OSVER =~ 7.1) { 
+   $MINUID=1000;
+}
 sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_wwwacct_conf "HOST daily.cpanel.vm\n" .
@@ -135,17 +140,17 @@ sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
                             "NS2 ns2.os.cpanel.vm\n" .
                             "NS3\n" .
                             "NS4\n" .
-                            "MINUID 500\n" .
+                            "MINUID $MINUID\n" .
                             "HOMEMATCH home\n" .
                             "NSTTL 86400\n" .
                             "TTL 14400\n" .
-                            "DEFMOD x3\n" .
+                            "DEFMOD paper_lantern\n" .
                             "SCRIPTALIAS y\n" .
                             "CONTACTPAGER\n" .
                             "MINUID\n" .
                             "CONTACTEMAIL\n" .
                             "LOGSTYLE combined\n" .
-                            "DEFWEBMAILTHEME x3\n";
+                            "DEFWEBMAILTHEME paper_lantern\n";
 close ($etc_wwwacct_conf);
 
 # correct /etc/hosts
@@ -169,7 +174,7 @@ system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes |/scripts/wwwacct cptest.tld cptest p@55w0rd! 1000 x3 n y 10 10 10 10 10 10 10 n');
+system_formatted ('yes |/scripts/wwwacct cptest.tld cptest p@55w0rd! 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
 print "creating test email - testing\@cptest.tld\n";
 system_formatted ('/scripts/addpop testing@cptest.tld p@55w0rd!');
 print "creating test database - cptest_testdb\n";
