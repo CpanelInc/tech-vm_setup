@@ -8,15 +8,16 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.0';
+my $VERSION = '0.3.1';
 
 # get opts
-my ($ip, $natip, $help, $fast, $full, $force, $answer);
+my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
 GetOptions (
     "help" => \$help,
     "full" => \$full,
     "fast" => \$fast,
     "force" => \$force,
+	"installcl" => \$cltrue,
 );
 
 # print header
@@ -30,13 +31,15 @@ if ($help) {
     print "-------------- \n";
     print "--force: Ignores previous run check\n";
     print "--fast: Skips all optional setup functions\n";
-    print "--full: Passes yes to all optional setup functions \n\n";
+    print "--full: Passes yes to all optional setup functions\n";
+    print "--installcl: Installs CloudLinux(can take awhile and requires reboot)\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
     print "- Installs common packages\n";
     print "- Sets hostname\n";
     print "- Sets resolvers\n";
     print "- Builds /var/cpanel/cpnat\n";
+    print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
     print "- Fixes screen permissions\n";
@@ -47,10 +50,10 @@ if ($help) {
     print "- Updates motd\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
+    print "- Downloads and runs cldeply (Installs CloudLinux) --installcl (optional)\n";
     print "- Installs Task::Cpanel::Core (optional)\n\n";
     exit;
 }
-
 
 ### and go
 if (-e "/root/vmsetup.lock")
@@ -80,8 +83,8 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc bind-utils jwhois dev git]\n";
-system_formatted ("yum install mtr nmap telnet nc bind-utils jwhois dev git -y");
+print "installing utilities via yum [mtr nmap telnet nc jq s3cmd bind-utils jwhois dev git]\n";
+system_formatted ("yum install mtr nmap telnet nc jq s3cmd bind-utils jwhois dev git -y");
 
 # set hostname
 print "setting hostname\n";
@@ -106,7 +109,6 @@ print "adding resolvers\n";
 unlink '/etc/resolv.conf';
 sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    #print $etc_resolv_conf "nameserver 10.6.1.1\n" . "nameserver 8.8.8.8\n";
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.103\n";
 close ($etc_resolv_conf);
 
@@ -187,6 +189,9 @@ system_formatted ("mysql -e 'FLUSH PRIVILEGES'");
 print "mapping cptest_testuser and cptest_testdb to cptest account\n";
 system_formatted ("/usr/local/cpanel/bin/dbmaptool cptest --type mysql --dbusers 'cptest_testuser' --dbs 'cptest_testdb'");
 
+print "Updating tweak settings (cpanel.config)...\n";
+system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
+
 # upcp
 print "would you like to run upcp now? [n] \n";
 if (!$full && !$fast) { 
@@ -217,6 +222,29 @@ if ($answer eq "y") {
     system_formatted ('/scripts/perlinstaller Task::Cpanel::Core');
 }
 
+print "Installing root's crontab if missing...\n";
+if (!(-e("/var/spool/cron/root")) or -s("/var/spool/cron/root")) { 
+	sysopen (my $roots_cron, '/var/spool/cron/root', O_WRONLY|O_CREAT) or 
+		die print_formatted ("$!");
+	print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
+30 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_db_cache && /usr/local/cpanel/scripts/update_db_cache
+*/5 * * * * /usr/local/cpanel/bin/dcpumon >/dev/null 2>&1
+56 0 * * * /usr/local/cpanel/whostmgr/docroot/cgi/cpaddons_report.pl --notify
+7 0 * * * /usr/local/cpanel/scripts/upcp --cron
+0 1 * * * /usr/local/cpanel/scripts/cpbackup
+35 * * * * /usr/bin/test -x /usr/local/cpanel/bin/tail-check && /usr/local/cpanel/bin/tail-check
+30 */2 * * * /usr/local/cpanel/bin/mysqluserstore >/dev/null 2>&1
+15 */2 * * * /usr/local/cpanel/bin/dbindex >/dev/null 2>&1
+45 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_mailman_cache && /usr/local/cpanel/scripts/update_mailman_cache
+15 */6 * * * /usr/local/cpanel/scripts/recoverymgmt >/dev/null 2>&1
+15 */6 * * * /usr/local/cpanel/scripts/autorepair recoverymgmt >/dev/null 2>&1
+30 5 * * * /usr/local/cpanel/scripts/optimize_eximstats > /dev/null 2>&1
+0 2 * * * /usr/local/cpanel/bin/backup
+2,58 * * * * /usr/local/bandmin/bandmin
+0 0 * * * /usr/local/bandmin/ipaddrmap\n";
+	close ($roots_cron);
+}
+
 print "updating /etc/motd\n";
 unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
@@ -236,10 +264,25 @@ system_formatted ('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 print "updating cpanel license\n";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
 
+# install CloudLinux
+if ($cltrue) { 
+	# Remove /var/cpanel/nocloudlinux touch file (if it exists)
+	if (-e("/var/cpanel/nocloudlinux")) { 
+		unlink("/var/cpanel/nocloudlinux");
+	}
+	system_formatted ("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
+	system_formatted ("sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59");
+}
+
 # exit cleanly
 print "setup complete\n\n";
 system_formatted ('cat /etc/motd');
 print "\n"; 
+if ($cltrue) { 
+	print "CloudLinux installed! A reboot is required!";
+}
+
+exit;
 
 ### subs
 sub print_formatted {
