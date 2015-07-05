@@ -50,7 +50,7 @@ if ($help) {
     print "- Updates motd\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
-    print "- Downloads and runs cldeply (Installs CloudLinux) --installcl (optional)\n";
+    print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
     print "- Installs Task::Cpanel::Core (optional)\n\n";
     exit;
 }
