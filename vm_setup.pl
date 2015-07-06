@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.1';
+my $VERSION = '0.3.2';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -54,6 +54,9 @@ if ($help) {
     print "- Installs Task::Cpanel::Core (optional)\n\n";
     exit;
 }
+
+# generate random password
+my $rndpass = &random_pass();  
 
 ### and go
 if (-e "/root/vmsetup.lock")
@@ -176,13 +179,13 @@ system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes |/scripts/wwwacct cptest.tld cptest p@55w0rd! 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
+system_formatted ('yes |/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
 print "creating test email - testing\@cptest.tld\n";
-system_formatted ('/scripts/addpop testing@cptest.tld p@55w0rd!');
+system_formatted ('/scripts/addpop testing@cptest.tld ' . $rndpass);
 print "creating test database - cptest_testdb\n";
 system_formatted ("mysql -e 'create database cptest_testdb'");
 print "creating test db user - cptest_testuser\n";
-system_formatted ("mysql -e 'create user \"cptest_testuser\" identified by \"p@55w0rd!\"'");
+system_formatted ("mysql -e 'create user \"cptest_testuser\" identified by \" $rndpass \"'");
 print "adding all privs for cptest_testuser to cptest_testdb\n";
 system_formatted ("mysql -e 'grant all on cptest_testdb.* TO cptest_testuser'");
 system_formatted ("mysql -e 'FLUSH PRIVILEGES'");
@@ -251,8 +254,8 @@ sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
                      "https://IPADDR:2087/login/?user=root&pass=cpanel1\n" .
-                     "https://IPADDR:2083/login/?user=cptest&pass=p@55w0rd!\n" .
-                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=p@55w0rd!\n\n"; 
+                     "https://IPADDR:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
+                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
 close ($etc_motd);
 
 # disables cphulkd
@@ -296,4 +299,25 @@ sub system_formatted {
         print_formatted("$_");
     }
     close $cmd;
+}
+
+sub random_pass { 
+	my $password_length=12;
+	my $password;
+	my $_rand;
+	my @chars = split(" ", "
+   		a b c d e f g h j k l m 
+   		n o p q r s t u v w x y z 
+   		- _ % # ! 1 2 3 4 5 6 7 
+   		8 9 Z Y X W V U T S R Q P 
+   		N M L K J H G F E D C 
+   		B A $ & = + 
+	");
+	srand;
+	my $key=@chars;
+	for (my $i=1; $i <= $password_length ;$i++) {
+		$_rand = int(rand $key);
+		$password .= $chars[$_rand];
+	}
+	return $password;
 }
