@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.2';
+my $VERSION = '0.3.3';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -253,9 +253,9 @@ unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
-                     "https://IPADDR:2087/login/?user=root&pass=cpanel1\n" .
-                     "https://IPADDR:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
-                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
+                     "https://$natip:2087/login/?user=root&pass=cpanel1\n" .
+                     "https://$natip:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
+                     "https://$natip:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
 close ($etc_motd);
 
 # disables cphulkd
