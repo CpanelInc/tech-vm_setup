@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.4';
+my $VERSION = '0.3.5';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -253,7 +253,7 @@ unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
-                     "https://$natip:2087/login/?user=root&pass=cpanel1\n" .
+                     "https://$natip:2087 - user=root - pass=cpanel1\n" .
                      "https://$natip:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
                      "https://$natip:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
 close ($etc_motd);
@@ -266,6 +266,12 @@ system_formatted ('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 # update cplicense
 print "updating cpanel license\n";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
+
+# move /etc/cpsources.conf out of the way if it exists
+if (-e("/etc/cpsources.conf")) { 
+   print "Found /etc/cpsources.conf file, moving it out of the way!\n";
+   system_formatted ("mv /etc/cpsources.conf /etc/cpsources.conf.vmsetup");
+}
 
 # install CloudLinux
 if ($cltrue) { 
