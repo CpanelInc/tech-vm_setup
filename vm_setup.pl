@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.2';
+my $VERSION = '0.3.5';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -253,9 +253,9 @@ unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
-                     "https://IPADDR:2087/login/?user=root&pass=cpanel1\n" .
-                     "https://IPADDR:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
-                     "https://IPADDR:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
+                     "https://$natip:2087 - user=root - pass=cpanel1\n" .
+                     "https://$natip:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
+                     "https://$natip:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
 close ($etc_motd);
 
 # disables cphulkd
@@ -266,6 +266,12 @@ system_formatted ('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 # update cplicense
 print "updating cpanel license\n";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
+
+# move /etc/cpsources.conf out of the way if it exists
+if (-e("/etc/cpsources.conf")) { 
+   print "Found /etc/cpsources.conf file, moving it out of the way!\n";
+   system_formatted ("mv /etc/cpsources.conf /etc/cpsources.conf.vmsetup");
+}
 
 # install CloudLinux
 if ($cltrue) { 
@@ -306,13 +312,13 @@ sub random_pass {
 	my $password;
 	my $_rand;
 	my @chars = split(" ", "
-   		a b c d e f g h j k l m 
-   		n o p q r s t u v w x y z 
-   		- _ % # ! 1 2 3 4 5 6 7 
-   		8 9 Z Y X W V U T S R Q P 
-   		N M L K J H G F E D C 
-   		B A $ & = + 
-	");
+      a b c d e f g h j k l m 
+      n o p q r s t u v w x y 
+      z - _ % # ! 1 2 3 4 5 6 
+      7 8 9 Z Y X W V U T S R 
+      Q P N M L K J H G F E D 
+      C B A & = + "
+   );
 	srand;
 	my $key=@chars;
 	for (my $i=1; $i <= $password_length ;$i++) {
