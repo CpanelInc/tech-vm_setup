@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.5';
+my $VERSION = '0.3.6';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -26,19 +26,19 @@ print "\nVM Server Setup Script\n" .
       "\n";
 if ($help) {
     print "Usage: perl vm_setup.pl [options]\n\n";
-    print "Description: Performs a number of functions to prepare meteorologist VMs for immediate use. \n\n";
+    print "Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. \n\n";
     print "Options: \n";
     print "-------------- \n";
     print "--force: Ignores previous run check\n";
     print "--fast: Skips all optional setup functions\n";
     print "--full: Passes yes to all optional setup functions\n";
-    print "--installcl: Installs CloudLinux(can take awhile and requires reboot)\n";
+    print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
     print "- Installs common packages\n";
     print "- Sets hostname\n";
     print "- Sets resolvers\n";
-    print "- Builds /var/cpanel/cpnat\n";
+    print "- Builds/updates /var/cpanel/cpnat\n";
     print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
@@ -86,16 +86,17 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc jq s3cmd bind-utils jwhois dev git]\n";
-system_formatted ("yum install mtr nmap telnet nc jq s3cmd bind-utils jwhois dev git -y");
+print "installing utilities via yum [mtr nmap telnet nc s3cmd bind-utils jwhois dev git]\n";
+system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev git -y");
 
 # set hostname
 print "setting hostname\n";
-system_formatted ("hostname daily.cpanel.vm");
-sysopen (my $etc_hostname, '/etc/hostname', O_WRONLY|O_CREAT) or
-    die print_formatted ("$!");
-    print $etc_hostname "daily.cpanel.vm";
-close ($etc_hostname);
+system_formatted ("/usr/local/cpanel/bin/set_hostname daily.cpanel.vm");
+#system_formatted ("hostname daily.cpanel.vm");
+#sysopen (my $etc_hostname, '/etc/hostname', O_WRONLY|O_CREAT) or
+#    die print_formatted ("$!");
+#    print $etc_hostname "daily.cpanel.vm";
+#close ($etc_hostname);
 
 # set /etc/sysconfig/network
 print "updating /etc/sysconfig/network\n";
@@ -171,6 +172,7 @@ close ($etc_hosts);
 # fix screen perms
 print "fixing screen perms\n";
 system_formatted ('rpm --setperms screen');
+system_formatted ('rpm --setugids screen');
 
 # make accesshash
 print "making access hash\n";
@@ -194,6 +196,22 @@ system_formatted ("/usr/local/cpanel/bin/dbmaptool cptest --type mysql --dbusers
 
 print "Updating tweak settings (cpanel.config)...\n";
 system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
+
+print "Updating/Creating /root/.bashrc aliases...\n";
+if (!(-e("/root/.bashrc"))) {
+   sysopen (my $roots_bashrc, '/root/.bashrc', O_WRONLY|O_CREAT) or
+      die print_formatted ("$!");
+   print $roots_bashrc 
+"export EDITOR=vi\n" . 
+"export VISUAL=vi\n" . 
+"alias ll=ls -alh\n" .
+"alias dir=ll | grep '^d'\n" .
+"alias ssp=curl -sk https://ssp.cpanel.net/run | sh\n" . 
+"alias acctinfo=/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)\n" . 
+"alias jsonpp='function _jsonpp() { cat $1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'\n";
+   close ($etc_network);
+}
+
 
 # upcp
 print "would you like to run upcp now? [n] \n";
