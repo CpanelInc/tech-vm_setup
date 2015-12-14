@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.6';
+my $VERSION = '0.3.7';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -48,6 +48,7 @@ if ($help) {
     print "- Disables cphulkd\n";
     print "- Creates access hash\n";
     print "- Updates motd\n";
+    print "- Creates /root/.bashrc with helpful aliases\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
@@ -92,11 +93,6 @@ system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev gi
 # set hostname
 print "setting hostname\n";
 system_formatted ("/usr/local/cpanel/bin/set_hostname daily.cpanel.vm");
-#system_formatted ("hostname daily.cpanel.vm");
-#sysopen (my $etc_hostname, '/etc/hostname', O_WRONLY|O_CREAT) or
-#    die print_formatted ("$!");
-#    print $etc_hostname "daily.cpanel.vm";
-#close ($etc_hostname);
 
 # set /etc/sysconfig/network
 print "updating /etc/sysconfig/network\n";
@@ -171,8 +167,8 @@ close ($etc_hosts);
 
 # fix screen perms
 print "fixing screen perms\n";
-system_formatted ('rpm --setperms screen');
-system_formatted ('rpm --setugids screen');
+system_formatted ('/bin/rpm --setperms screen');
+system_formatted ('/bin/rpm --setugids screen');
 
 # make accesshash
 print "making access hash\n";
@@ -197,26 +193,26 @@ system_formatted ("/usr/local/cpanel/bin/dbmaptool cptest --type mysql --dbusers
 print "Updating tweak settings (cpanel.config)...\n";
 system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
 
-print "Updating/Creating /root/.bashrc aliases...\n";
+print "Creating /root/.bashrc aliases...\n";
 if (!(-e("/root/.bashrc"))) {
    sysopen (my $roots_bashrc, '/root/.bashrc', O_WRONLY|O_CREAT) or
       die print_formatted ("$!");
    print $roots_bashrc 
 "export EDITOR=vi\n" . 
 "export VISUAL=vi\n" . 
-"alias ll=ls -alh\n" .
-"alias dir=ll | grep '^d'\n" .
-"alias ssp=curl -sk https://ssp.cpanel.net/run | sh\n" . 
-"alias acctinfo=/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)\n" . 
-"alias jsonpp='function _jsonpp() { cat $1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'\n";
+"alias ll=\"ls -alh\"\n" .
+"alias dir=\"ll | grep '^d'\"\n" .
+"alias ssp=\"curl -sk https://ssp.cpanel.net/run | sh\"\n" . 
+"alias acctinfo=\"/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)\"\n" . 
+"alias jsonpp=\"'function _jsonpp() { cat $1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'\"\n";
    close ($etc_network);
+   system_formatted ("source /root/.bashrc");
 }
 
-
 # upcp
-print "would you like to run upcp now? [n] \n";
 if (!$full && !$fast) { 
-    chomp ($answer = <STDIN>);
+   print "would you like to run upcp now? [n] \n";
+   chomp ($answer = <STDIN>);
 }
 if ($answer eq "y") {
     print "\nrunning upcp \n ";
@@ -224,9 +220,9 @@ if ($answer eq "y") {
 }
 
 # running another check_cpanel_rpms
-print "would you like to run check_cpanel_rpms now? [n] \n";
 if (!$full && !$fast) { 
-    chomp ($answer = <STDIN>);
+   print "would you like to run check_cpanel_rpms now? [n] \n";
+   chomp ($answer = <STDIN>);
 }
 if ($answer eq "y") {
     print "\nrunning check_cpanel_rpms \n ";
@@ -234,9 +230,9 @@ if ($answer eq "y") {
 }
 
 # install Task::Cpanel::Core
-print "would you like to install Task::Cpanel::Core? [n] \n";
 if (!$full && !$fast) { 
-    chomp ($answer = <STDIN>);
+   print "would you like to install Task::Cpanel::Core? [n] \n";
+   chomp ($answer = <STDIN>);
 }
 if ($answer eq "y") {
     print "\ninstalling Task::Cpanel::Core\n ";
@@ -306,7 +302,7 @@ print "setup complete\n\n";
 system_formatted ('cat /etc/motd');
 print "\n"; 
 if ($cltrue) { 
-	print "CloudLinux installed! A reboot is required!";
+	print "\n\nCloudLinux installed! A reboot is required!\n\n";
 }
 
 exit;
