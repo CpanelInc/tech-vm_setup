@@ -8,15 +8,15 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.7';
+my $VERSION = '0.3.8';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
 GetOptions (
-    "help" => \$help,
-    "full" => \$full,
-    "fast" => \$fast,
-    "force" => \$force,
+	"help" => \$help,
+	"full" => \$full,
+	"fast" => \$fast,
+	"force" => \$force,
 	"installcl" => \$cltrue,
 );
 
@@ -58,6 +58,8 @@ if ($help) {
 
 # generate random password
 my $rndpass = &random_pass();  
+my $time=time;
+my $hostname="daily_".$time.".cpanel.vm";
 
 ### and go
 if (-e "/root/vmsetup.lock")
@@ -92,7 +94,7 @@ system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev gi
 
 # set hostname
 print "setting hostname\n";
-system_formatted ("/usr/local/cpanel/bin/set_hostname daily.cpanel.vm");
+system_formatted ("/usr/local/cpanel/bin/set_hostname $hostname");
 
 # set /etc/sysconfig/network
 print "updating /etc/sysconfig/network\n";
@@ -101,7 +103,7 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_network "NETWORKING=yes\n" .
                      "NOZEROCONF=yes\n" .
-                     "HOSTNAME=daily.cpanel.vm\n";
+                     "HOSTNAME=$hostname\n";
 close ($etc_network);
 
 # add resolvers - WE SHOULD NOT BE USING GOOGLE DNS!!! (or any public resolvers)
@@ -134,7 +136,7 @@ if ($OSVER =~ 7.1) {
 }
 sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    print $etc_wwwacct_conf "HOST daily.cpanel.vm\n" .
+    print $etc_wwwacct_conf "HOST $hostname\n" .
                             "ADDR $natip\n" .
                             "HOMEDIR /home\n" .
                             "ETHDEV eth0\n" .
@@ -162,7 +164,7 @@ sysopen (my $etc_hosts, '/etc/hosts', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_hosts "127.0.0.1		localhost localhost.localdomain localhost4 localhost4.localdomain4\n" .
                      "::1		localhost localhost.localdomain localhost6 localhost6.localdomain6\n" .
-                     "$ip		daily daily.cpanel.vm\n";
+                     "$ip		daily $hostname\n";
 close ($etc_hosts);
 
 # fix screen perms

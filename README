@@ -1,4 +1,38 @@
-script to make changes to the meteorologist vms
+script to make changes to the OpenStac vms
 
 please fork the repo and submit a pull request for any changes you'd like to see
 or, create a feature request under "Issues"
+
+Usage: perl vm_setup.pl [options]
+
+Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. 
+
+Options: 
+
+   --force: Ignores previous run check.
+   --fast: Skips all optional setup functions.
+   --full: Passes yes to all optional setup functions.
+   --installcl: Installs CloudLinux (can take a while and requires reboot).
+
+Full list of things this does: 
+
+   Installs common packages
+   Sets hostname
+   Sets resolvers
+   Builds/updates /var/cpanel/cpnat
+   Updates /var/cpanel/cpanel.config (Tweak Settings)
+   Performs basic setup wizard
+   Fixes /etc/hosts
+   Fixes screen permissions
+   Runs cpkeyclt
+   Creates test account
+   Disables cphulkd
+   Creates access hash
+   Updates motd
+   Creates /root/.bashrc with helpful aliases
+   Runs upcp (optional)
+   Runs check_cpanel_rpms --fix (optional)
+   Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)
+   Installs Task::Cpanel::Core (optional)
+
+
