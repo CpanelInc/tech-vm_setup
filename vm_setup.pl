@@ -59,7 +59,7 @@ if ($help) {
 # generate random password
 my $rndpass = &random_pass();  
 my $time=time;
-my $hostname="daily_".$time.".cpanel.vm";
+my $hostname="daily".$time.".cpanel.vm";
 
 ### and go
 if (-e "/root/vmsetup.lock")
