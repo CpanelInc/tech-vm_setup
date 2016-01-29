@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.3.8';
+my $VERSION = '0.4.0';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -48,7 +48,7 @@ if ($help) {
     print "- Disables cphulkd\n";
     print "- Creates access hash\n";
     print "- Updates motd\n";
-    print "- Creates /root/.bashrc with helpful aliases\n";
+    print "- Creates /root/.bash_profile with helpful aliases\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
@@ -107,18 +107,35 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
 close ($etc_network);
 
 # add resolvers - WE SHOULD NOT BE USING GOOGLE DNS!!! (or any public resolvers)
+# Well, seems as though we turned off 208.74.121.103 as a resolver.  So going to OpenDNS for now.
 print "adding resolvers\n";
 unlink '/etc/resolv.conf';
 sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.103\n";
+    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.67.220.220\n" . "nameserver 208.67.222.222\n";
 close ($etc_resolv_conf);
 
 # run /scripts/build_cpnat
+# Move the current /var/cpanel/cpnat file out of the way.  
+system_formatted ("mv /var/cpanel/cpnat /var/cpanel/cpnat.vmsetup");
 print "running build_cpnat\n";
 system_formatted ("/scripts/build_cpnat");
-chomp ( $ip = qx(cat /var/cpanel/cpnat | awk '{print\$2}') );
-chomp ( $natip = qx(cat /var/cpanel/cpnat | awk '{print\$1}') );
+# IF THE ABOVE COMMAND FAILS, THEN WE DON'T KNOW $ip or $natip!!! GET IT FROM /etc/wwwacct.conf
+if (-e("/var/cpanel/cpnat")) { 
+   chomp ( $ip = qx(cat /var/cpanel/cpnat | awk '{print\$2}') );
+   chomp ( $natip = qx(cat /var/cpanel/cpnat | awk '{print\$1}') );
+}
+else {
+   $ip="208.74.121.106";
+   ($natip)=(split(/\s+/,qx[ cat /etc/wwwacct.conf | grep 'ADDR ' ]))[1];
+   chomp($natip);
+   sysopen (my $cpnat, '/var/cpanel/cpnat', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+   print $cpnat "$natip $ip\n";
+   close ($cpnat);
+}
+
+# fix /var/cpanel/mainip file because for some reason it has an old value in it
+system_formatted ("ip=`cat /etc/wwwacct.conf | grep 'ADDR ' | awk '{print \$2}'`; echo -n \$ip > /var/cpanel/mainip");
 
 # create .whostmgrft
 print "creating /etc/.whostmgrft\n";
@@ -179,9 +196,9 @@ system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes |/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
+system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
 print "creating test email - testing\@cptest.tld\n";
-system_formatted ('/scripts/addpop testing@cptest.tld ' . $rndpass);
+system_formatted ('/usr/local/cpanel/scripts/addpop testing@cptest.tld ' . $rndpass);
 print "creating test database - cptest_testdb\n";
 system_formatted ("mysql -e 'create database cptest_testdb'");
 print "creating test db user - cptest_testuser\n";
@@ -195,20 +212,19 @@ system_formatted ("/usr/local/cpanel/bin/dbmaptool cptest --type mysql --dbusers
 print "Updating tweak settings (cpanel.config)...\n";
 system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
 
-print "Creating /root/.bashrc aliases...\n";
-if (!(-e("/root/.bashrc"))) {
-   sysopen (my $roots_bashrc, '/root/.bashrc', O_WRONLY|O_CREAT) or
-      die print_formatted ("$!");
-   print $roots_bashrc 
-"export EDITOR=vi\n" . 
-"export VISUAL=vi\n" . 
-"alias ll=\"ls -alh\"\n" .
-"alias dir=\"ll | grep '^d'\"\n" .
-"alias ssp=\"curl -sk https://ssp.cpanel.net/run | sh\"\n" . 
-"alias acctinfo=\"/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)\"\n" . 
-"alias jsonpp=\"'function _jsonpp() { cat $1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'\"\n";
-   close ($etc_network);
-   system_formatted ("source /root/.bashrc");
+print "Creating /root/.bash_profile aliases...\n";
+if (!(-e("/root/.bash_profile"))) {
+   sysopen (my $roots_bashprofile, '/root/.bash_profile', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+   print $roots_bashprofile <<EOF;
+export EDITOR=vi
+export VISUAL=vi
+alias ll="ls -alh"
+alias dir="ll | grep '^d'"
+alias ssp="curl -sk https://ssp.cpanel.net/run | sh"
+alias acctinfo="/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)"
+alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'
+EOF
+   close ($roots_bashprofile);
 }
 
 # upcp
