@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.0';
+my $VERSION = '0.4.1';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -89,8 +89,8 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc s3cmd bind-utils jwhois dev git]\n";
-system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev git -y");
+print "installing utilities via yum [mtr nmap telnet nc s3cmd bind-utils jwhois dev git pydf]\n";
+system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev git pydf -y");
 
 # set hostname
 print "setting hostname\n";
@@ -186,8 +186,9 @@ close ($etc_hosts);
 
 # fix screen perms
 print "fixing screen perms\n";
-system_formatted ('/bin/rpm --setperms screen');
-system_formatted ('/bin/rpm --setugids screen');
+#system_formatted ('/bin/rpm --setperms screen');
+#system_formatted ('/bin/rpm --setugids screen');
+system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
 # make accesshash
 print "making access hash\n";
@@ -280,14 +281,18 @@ if (!(-e("/var/spool/cron/root")) or -s("/var/spool/cron/root")) {
 	close ($roots_cron);
 }
 
+system("grep -A1 'Disabling selinux' /var/log/boot.log | grep -v 'Disabling selinux' > /root/vmsetup.tmp");
+my $SERVER_IP=qx[ head -1 /root/vmsetup.tmp ];
+
 print "updating /etc/motd\n";
 unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
-                     "https://$natip:2087 - user=root - pass=cpanel1\n" .
-                     "https://$natip:2083/login/?user=cptest&pass=" . $rndpass . "\n" .
-                     "https://$natip:2096/login/?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n"; 
+                     "WHM: https://$SERVER_IP:2087 - user=root - pass=cpanel1\n" . 
+                     "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . "(Domain: cptest.tld cPanel Account: cptest\n" .
+                     "Webmail: https://$SERVER_IP:2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
+                     "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
 close ($etc_motd);
 
 # disables cphulkd
@@ -349,7 +354,7 @@ sub random_pass {
       z - _ % # ! 1 2 3 4 5 6 
       7 8 9 Z Y X W V U T S R 
       Q P N M L K J H G F E D 
-      C B A & = + "
+      C B A = + "
    );
 	srand;
 	my $key=@chars;
