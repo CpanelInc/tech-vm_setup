@@ -288,11 +288,19 @@ print "updating /etc/motd\n";
 unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
+    if ($SERVER_IP) { 
+        print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
                      "WHM: https://$SERVER_IP:2087 - user=root - pass=cpanel1\n" . 
-                     "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . "(Domain: cptest.tld cPanel Account: cptest\n" .
+                     "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . "(Domain: cptest.tld cPanel Account: cptest)\n" .
                      "Webmail: https://$SERVER_IP:2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
                      "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
+    else { 
+        print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
+                     "WHM: user=root - pass=cpanel1\n" . 
+                     "cPanel: user=cptest - pass=" . $rndpass . "(Domain: cptest.tld\n" .
+                     "Webmail: user=testing\@cptest.tld - pass=" . $rndpass . "\n\n" . 
+                     "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
+    }
 close ($etc_motd);
 
 # disables cphulkd
