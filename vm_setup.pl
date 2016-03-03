@@ -294,6 +294,7 @@ sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
                      "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . "(Domain: cptest.tld cPanel Account: cptest)\n" .
                      "Webmail: https://$SERVER_IP:2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
                      "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
+    }
     else { 
         print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
                      "WHM: user=root - pass=cpanel1\n" . 
