@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.1';
+my $VERSION = '0.4.2';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -19,6 +19,9 @@ GetOptions (
 	"force" => \$force,
 	"installcl" => \$cltrue,
 );
+
+# Install Data::Validate::IP Perl module since it's necessary to validate an IP address.
+system_formatted ("/usr/local/cpanel/bin/cpanm Data::Validate::IP");
 
 # print header
 print "\nVM Server Setup Script\n" .
@@ -62,8 +65,7 @@ my $time=time;
 my $hostname="daily".$time.".cpanel.vm";
 
 ### and go
-if (-e "/root/vmsetup.lock")
-{
+if (-e "/root/vmsetup.lock") {
     if (!$force)
     {
         print "/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...\n";
@@ -73,13 +75,11 @@ if (-e "/root/vmsetup.lock")
         print "/root/vmsetup.lock exists. --force passed. Ignoring...\n";
     }
 }
-if($full)
-{
+if($full) {
     print "--full passed. Passing y to all optional setup options.\n\n";
     chomp ($answer="y");
 }
-if($fast)
-{
+if($fast) {
     print "--fast passed. Skipping all optional setup options.\n\n";
     chomp ($answer="n");
 }
@@ -282,21 +282,22 @@ if (!(-e("/var/spool/cron/root")) or -s("/var/spool/cron/root")) {
 }
 
 system("grep -A1 'Disabling selinux' /var/log/boot.log | grep -v 'Disabling selinux' > /root/vmsetup.tmp");
-my $SERVER_IP=qx[ head -1 /root/vmsetup.tmp ];
+my $SERVER_IP=qx[ tail -1 /root/vmsetup.tmp ];
+chomp($SERVER_IP);
 
 print "updating /etc/motd\n";
 unlink '/etc/motd';
 sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    if ($SERVER_IP) { 
-        print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
+    if (is_ipv4($SERVER_IP)) { 
+        print $etc_motd "VM Setup Script created the following test accounts:\n" .
                      "WHM: https://$SERVER_IP:2087 - user=root - pass=cpanel1\n" . 
-                     "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . "(Domain: cptest.tld cPanel Account: cptest)\n" .
+                     "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . " (Domain: cptest.tld cPanel Account: cptest)\n" .
                      "Webmail: https://$SERVER_IP:2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
                      "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
     }
     else { 
-        print $etc_motd "\nVM Setup Script created the following test accounts:\n" .
+        print $etc_motd "VM Setup Script created the following test accounts:\n" .
                      "WHM: user=root - pass=cpanel1\n" . 
                      "cPanel: user=cptest - pass=" . $rndpass . "(Domain: cptest.tld\n" .
                      "Webmail: user=testing\@cptest.tld - pass=" . $rndpass . "\n\n" . 
