@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.4';
+my $VERSION = '0.4.5';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -271,18 +271,14 @@ print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > 
 0 0 * * * /usr/local/bandmin/ipaddrmap\n";
 	close ($roots_cron);
 
-system("grep -A1 'Disabling selinux' /var/log/boot.log | grep -v 'Disabling selinux' > /root/vmsetup.tmp");
-my $SERVER_IP=qx[ head -1 /root/vmsetup.tmp ];
-$SERVER_IP =~ s/\s+//g;
-
 print "updating /etc/motd\n";
 unlink '/etc/motd';
 my $etc_motd;
 sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
 print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
-	"WHM: https://" . $SERVER_IP . ":2087 - user=root - pass=cpanel1\n\n" .
-	"cPanel: https://" . $SERVER_IP . ":2083/login?user=cptest&pass=" . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n\n" .
-	"Webmail: https://" . $SERVER_IP . ":2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
+	"WHM: user=root - pass=cpanel1\n" .
+	"cPanel: user=cptest - pass=" . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
+	"Webmail: user=testing\@cptest.tld - pass=" . $rndpass . "\n\n" . 
 	"The following aliases have also been setup: ssp, acctinfo jsonpp\n"; 
 close ($etc_motd);
 
