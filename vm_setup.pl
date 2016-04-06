@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/local/cpanel/3rdparty/bin/perl
 
 # vm_setup.pl
 
@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.2';
+my $VERSION = '0.4.4';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -20,8 +20,21 @@ GetOptions (
 	"installcl" => \$cltrue,
 );
 
-# Install Data::Validate::IP Perl module since it's necessary to validate an IP address.
-system_formatted ("/usr/local/cpanel/bin/cpanm Data::Validate::IP");
+# add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
+# it seems as though we turned off 208.74.121.103 as a resolver.  So going to use OpenDNS 
+# for now.
+print "adding resolvers\n";
+unlink '/etc/resolv.conf';
+sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
+    die print_formatted ("$!");
+    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.67.220.220\n" . "nameserver 208.67.222.222\n";
+close ($etc_resolv_conf);
+
+# move /etc/cpsources.conf out of the way if it exists
+if (-e("/etc/cpsources.conf")) { 
+   print "Found /etc/cpsources.conf file, moving it out of the way!\n";
+   system_formatted ("mv /etc/cpsources.conf /etc/cpsources.conf.vmsetup");
+}
 
 # print header
 print "\nVM Server Setup Script\n" .
@@ -55,7 +68,6 @@ if ($help) {
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
-    print "- Installs Task::Cpanel::Core (optional)\n\n";
     exit;
 }
 
@@ -105,15 +117,6 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
                      "NOZEROCONF=yes\n" .
                      "HOSTNAME=$hostname\n";
 close ($etc_network);
-
-# add resolvers - WE SHOULD NOT BE USING GOOGLE DNS!!! (or any public resolvers)
-# Well, seems as though we turned off 208.74.121.103 as a resolver.  So going to OpenDNS for now.
-print "adding resolvers\n";
-unlink '/etc/resolv.conf';
-sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
-    die print_formatted ("$!");
-    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.67.220.220\n" . "nameserver 208.67.222.222\n";
-close ($etc_resolv_conf);
 
 # run /scripts/build_cpnat
 # Move the current /var/cpanel/cpnat file out of the way.  
@@ -248,21 +251,9 @@ if ($answer eq "y") {
     system_formatted ('/scripts/check_cpanel_rpms --fix');
 }
 
-# install Task::Cpanel::Core
-if (!$full && !$fast) { 
-   print "would you like to install Task::Cpanel::Core? [n] \n";
-   chomp ($answer = <STDIN>);
-}
-if ($answer eq "y") {
-    print "\ninstalling Task::Cpanel::Core\n ";
-    system_formatted ('/scripts/perlinstaller Task::Cpanel::Core');
-}
-
-print "Installing root's crontab if missing...\n";
-if (!(-e("/var/spool/cron/root")) or -s("/var/spool/cron/root")) { 
-	sysopen (my $roots_cron, '/var/spool/cron/root', O_WRONLY|O_CREAT) or 
-		die print_formatted ("$!");
-	print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
+print "Installing root's crontab...\n";
+sysopen (my $roots_cron, '/var/spool/cron/root', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
 30 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_db_cache && /usr/local/cpanel/scripts/update_db_cache
 */5 * * * * /usr/local/cpanel/bin/dcpumon >/dev/null 2>&1
 56 0 * * * /usr/local/cpanel/whostmgr/docroot/cgi/cpaddons_report.pl --notify
@@ -279,30 +270,20 @@ if (!(-e("/var/spool/cron/root")) or -s("/var/spool/cron/root")) {
 2,58 * * * * /usr/local/bandmin/bandmin
 0 0 * * * /usr/local/bandmin/ipaddrmap\n";
 	close ($roots_cron);
-}
 
 system("grep -A1 'Disabling selinux' /var/log/boot.log | grep -v 'Disabling selinux' > /root/vmsetup.tmp");
-my $SERVER_IP=qx[ tail -1 /root/vmsetup.tmp ];
-chomp($SERVER_IP);
+my $SERVER_IP=qx[ head -1 /root/vmsetup.tmp ];
+$SERVER_IP =~ s/\s+//g;
 
 print "updating /etc/motd\n";
 unlink '/etc/motd';
-sysopen (my $etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or
-    die print_formatted ("$!");
-    if (is_ipv4($SERVER_IP)) { 
-        print $etc_motd "VM Setup Script created the following test accounts:\n" .
-                     "WHM: https://$SERVER_IP:2087 - user=root - pass=cpanel1\n" . 
-                     "cPanel: https://$SERVER_IP:2083/login?user=cptest&pass=" . $rndpass . " (Domain: cptest.tld cPanel Account: cptest)\n" .
-                     "Webmail: https://$SERVER_IP:2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
-                     "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
-    }
-    else { 
-        print $etc_motd "VM Setup Script created the following test accounts:\n" .
-                     "WHM: user=root - pass=cpanel1\n" . 
-                     "cPanel: user=cptest - pass=" . $rndpass . "(Domain: cptest.tld\n" .
-                     "Webmail: user=testing\@cptest.tld - pass=" . $rndpass . "\n\n" . 
-                     "The following aliases have also been setup: ssp, acctinfo jsonpp\n\n";
-    }
+my $etc_motd;
+sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
+	"WHM: https://" . $SERVER_IP . ":2087 - user=root - pass=cpanel1\n\n" .
+	"cPanel: https://" . $SERVER_IP . ":2083/login?user=cptest&pass=" . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n\n" .
+	"Webmail: https://" . $SERVER_IP . ":2096/login?user=testing\@cptest.tld&pass=" . $rndpass . "\n\n" . 
+	"The following aliases have also been setup: ssp, acctinfo jsonpp\n"; 
 close ($etc_motd);
 
 # disables cphulkd
@@ -313,12 +294,6 @@ system_formatted ('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 # update cplicense
 print "updating cpanel license\n";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
-
-# move /etc/cpsources.conf out of the way if it exists
-if (-e("/etc/cpsources.conf")) { 
-   print "Found /etc/cpsources.conf file, moving it out of the way!\n";
-   system_formatted ("mv /etc/cpsources.conf /etc/cpsources.conf.vmsetup");
-}
 
 # install CloudLinux
 if ($cltrue) { 
