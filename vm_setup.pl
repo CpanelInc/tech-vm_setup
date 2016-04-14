@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.5';
+my $VERSION = '0.4.6';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -149,11 +149,6 @@ close ($etc_whostmgrft);
 # correct wwwacct.conf
 print "correcting /etc/wwwacct.conf\n";
 unlink '/etc/wwwacct.conf';
-my $OSVER = `cat /etc/redhat-release`;
-my $MINUID=500;
-if ($OSVER =~ 7.1) { 
-   $MINUID=1000;
-}
 sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
     print $etc_wwwacct_conf "HOST $hostname\n" .
@@ -164,14 +159,12 @@ sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
                             "NS2 ns2.os.cpanel.vm\n" .
                             "NS3\n" .
                             "NS4\n" .
-                            "MINUID $MINUID\n" .
                             "HOMEMATCH home\n" .
                             "NSTTL 86400\n" .
                             "TTL 14400\n" .
                             "DEFMOD paper_lantern\n" .
                             "SCRIPTALIAS y\n" .
                             "CONTACTPAGER\n" .
-                            "MINUID\n" .
                             "CONTACTEMAIL\n" .
                             "LOGSTYLE combined\n" .
                             "DEFWEBMAILTHEME paper_lantern\n";
@@ -189,8 +182,6 @@ close ($etc_hosts);
 
 # fix screen perms
 print "fixing screen perms\n";
-#system_formatted ('/bin/rpm --setperms screen');
-#system_formatted ('/bin/rpm --setugids screen');
 system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
 # make accesshash
