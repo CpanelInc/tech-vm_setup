@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.6';
+my $VERSION = '0.4.7';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -222,6 +222,18 @@ EOF
    close ($roots_bashprofile);
 }
 
+# Fix licenseid_credentials.json file.
+if (-e("/var/cpanel/licenseid_credentials.json")) { 
+    print "Patching SSL market files so you can test SSL Market on OpenStack...\n";
+    system_formatted ("mv /var/cpanel/licenseid_credentials.json /var/cpanel/licenseid_credentials.json.vmsetup");
+    sysopen (my $licenseid_credentials, '/var/cpanel/licenseid_credentials.json', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+    print $licenseid_credentials <<EOF;
+{"client_id":"22413248","client_secret":"internalIP"}
+EOF
+    close($licenseid_credentials);
+    system_formatted ("touch /var/cpanel/dev_sandbox");
+}
+
 # upcp
 if (!$full && !$fast) { 
    print "would you like to run upcp now? [n] \n";
@@ -292,8 +304,12 @@ if ($cltrue) {
 	system_formatted ("sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59");
 }
 
+# restart cpsrvd 
+print "Restarting cpsvrd...\n";
+system_formatted ("/usr/local/cpanel/scripts/restartsrv_cpsrvd");
+
 # exit cleanly
-print "setup complete\n\n";
+print "Setup complete\n\n";
 system_formatted ('cat /etc/motd');
 print "\n"; 
 if ($cltrue) { 
