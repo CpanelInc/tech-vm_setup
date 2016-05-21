@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.7';
+my $VERSION = '0.4.8';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -188,6 +188,10 @@ system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 print "making access hash\n";
 $ENV{'REMOTE_USER'} = 'root';
 system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
+
+print "Installing CDB_file.pm Perl Module\n";
+system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
+
 
 # create test account
 print "creating test account - cptest\n";
