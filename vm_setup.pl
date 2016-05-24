@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.7';
+my $VERSION = '0.4.9';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -189,6 +189,10 @@ print "making access hash\n";
 $ENV{'REMOTE_USER'} = 'root';
 system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
+print "Installing CDB_file.pm Perl Module\n";
+system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
+
+
 # create test account
 print "creating test account - cptest\n";
 system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
@@ -279,9 +283,9 @@ unlink '/etc/motd';
 my $etc_motd;
 sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
 print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
-	"WHM: user=root - pass=cpanel1\n" .
-	"cPanel: user=cptest - pass=" . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
-	"Webmail: user=testing\@cptest.tld - pass=" . $rndpass . "\n\n" . 
+	"WHM: user: root - pass: cpanel1\n" .
+	"cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
+	"Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" . 
 	"The following aliases have also been setup: ssp, acctinfo jsonpp\n"; 
 close ($etc_motd);
 
