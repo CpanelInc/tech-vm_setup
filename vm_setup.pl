@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.9';
+my $VERSION = '0.5.0';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -101,8 +101,8 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc s3cmd bind-utils jwhois dev git pydf]\n";
-system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev git pydf -y");
+print "installing utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils jwhois dev git pydf]\n";
+system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils jwhois dev git pydf -y");
 
 # set hostname
 print "setting hostname\n";
@@ -195,7 +195,9 @@ system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
+# <domain> <username> <password> <quota> <theme> <ip[y/n]> <cgi[y/n]> <frontpage [always n]> <maxftp> <maxsql> <maxpop> <maxlist> <maxsub> <bwlimit> <has_shell[y/n]> <owner [root|reseller]> <plan> <maxpark> <maxaddon> <featurelist>
+# NOT INCLUDED above is: <contactemail> <use_registered_nameservers> <language>
+system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y n 10 10 10 10 10 1000 n root default 10 10 default');
 print "creating test email - testing\@cptest.tld\n";
 system_formatted ('/usr/local/cpanel/scripts/addpop testing@cptest.tld ' . $rndpass);
 print "creating test database - cptest_testdb\n";
@@ -212,9 +214,11 @@ print "Updating tweak settings (cpanel.config)...\n";
 system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
 
 print "Creating /root/.bash_profile aliases...\n";
-if (!(-e("/root/.bash_profile"))) {
-   sysopen (my $roots_bashprofile, '/root/.bash_profile', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-   print $roots_bashprofile <<EOF;
+if (-e("/root/.bash_profile")) {
+   system_formatted ("mv /root/.bash_profile /root/.bash_profile.vmsetup");
+}
+sysopen (my $roots_bashprofile, '/root/.bash_profile', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+print $roots_bashprofile <<EOF;
 export EDITOR=vi
 export VISUAL=vi
 alias ll="ls -alh"
