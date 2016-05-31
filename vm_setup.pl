@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.4.9';
+my $VERSION = '0.5.1';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -101,8 +101,8 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc s3cmd bind-utils jwhois dev git pydf]\n";
-system_formatted ("yum install mtr nmap telnet nc s3cmd bind-utils jwhois dev git pydf -y");
+print "installing utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils jwhois dev git pydf]\n";
+system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils jwhois dev git pydf -y");
 
 # set hostname
 print "setting hostname\n";
@@ -192,10 +192,11 @@ system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 print "Installing CDB_file.pm Perl Module\n";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
-
 # create test account
 print "creating test account - cptest\n";
-system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y 10 10 10 10 10 10 10 n');
+# <domain> <username> <password> <quota> <theme> <ip[y/n]> <cgi[y/n]> <frontpage [always n]> <maxftp> <maxsql> <maxpop> <maxlist> <maxsub> <bwlimit> <has_shell[y/n]> <owner [root|reseller]> <plan> <maxpark> <maxaddon> <featurelist>
+# NOT INCLUDED above is: <contactemail> <use_registered_nameservers> <language>
+system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y n 10 10 10 10 10 1000 n root default 10 10 default');
 print "creating test email - testing\@cptest.tld\n";
 system_formatted ('/usr/local/cpanel/scripts/addpop testing@cptest.tld ' . $rndpass);
 print "creating test database - cptest_testdb\n";
@@ -212,21 +213,25 @@ print "Updating tweak settings (cpanel.config)...\n";
 system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
 
 print "Creating /root/.bash_profile aliases...\n";
-if (!(-e("/root/.bash_profile"))) {
-   sysopen (my $roots_bashprofile, '/root/.bash_profile', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-   print $roots_bashprofile <<EOF;
+if (-e("/root/.bash_profile")) {
+   # Backup the current one if it exists. 
+   system_formatted ("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
+}
+# Append.
+sysopen (my $roots_bashprofile, '/root/.bash_profile', O_APPEND) or die print_formatted ("$!");
+print $roots_bashprofile <<EOF;
 export EDITOR=vi
 export VISUAL=vi
 alias ll="ls -alh"
 alias dir="ll | grep '^d'"
 alias ssp="curl -sk https://ssp.cpanel.net/run | sh"
 alias acctinfo="/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)"
-alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'
+alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/522/bin/json_xs; }; _jsonpp'
 EOF
    close ($roots_bashprofile);
 }
 
-# Fix licenseid_credentials.json file.
+# Fix licenseid_credentials.json file. For use with new store.
 if (-e("/var/cpanel/licenseid_credentials.json")) { 
     print "Patching SSL market files so you can test SSL Market on OpenStack...\n";
     system_formatted ("mv /var/cpanel/licenseid_credentials.json /var/cpanel/licenseid_credentials.json.vmsetup");
@@ -276,7 +281,7 @@ print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > 
 0 2 * * * /usr/local/cpanel/bin/backup
 2,58 * * * * /usr/local/bandmin/bandmin
 0 0 * * * /usr/local/bandmin/ipaddrmap\n";
-	close ($roots_cron);
+close ($roots_cron);
 
 print "updating /etc/motd\n";
 unlink '/etc/motd';
