@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.0';
+my $VERSION = '0.5.1';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -192,7 +192,6 @@ system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 print "Installing CDB_file.pm Perl Module\n";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
-
 # create test account
 print "creating test account - cptest\n";
 # <domain> <username> <password> <quota> <theme> <ip[y/n]> <cgi[y/n]> <frontpage [always n]> <maxftp> <maxsql> <maxpop> <maxlist> <maxsub> <bwlimit> <has_shell[y/n]> <owner [root|reseller]> <plan> <maxpark> <maxaddon> <featurelist>
@@ -215,9 +214,11 @@ system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 al
 
 print "Creating /root/.bash_profile aliases...\n";
 if (-e("/root/.bash_profile")) {
-   system_formatted ("mv /root/.bash_profile /root/.bash_profile.vmsetup");
+   # Backup the current one if it exists. 
+   system_formatted ("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
 }
-sysopen (my $roots_bashprofile, '/root/.bash_profile', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+# Append.
+sysopen (my $roots_bashprofile, '/root/.bash_profile', O_APPEND) or die print_formatted ("$!");
 print $roots_bashprofile <<EOF;
 export EDITOR=vi
 export VISUAL=vi
@@ -225,12 +226,12 @@ alias ll="ls -alh"
 alias dir="ll | grep '^d'"
 alias ssp="curl -sk https://ssp.cpanel.net/run | sh"
 alias acctinfo="/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)"
-alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/514/bin/json_xs; }; _jsonpp'
+alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/522/bin/json_xs; }; _jsonpp'
 EOF
    close ($roots_bashprofile);
 }
 
-# Fix licenseid_credentials.json file.
+# Fix licenseid_credentials.json file. For use with new store.
 if (-e("/var/cpanel/licenseid_credentials.json")) { 
     print "Patching SSL market files so you can test SSL Market on OpenStack...\n";
     system_formatted ("mv /var/cpanel/licenseid_credentials.json /var/cpanel/licenseid_credentials.json.vmsetup");
@@ -280,7 +281,7 @@ print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > 
 0 2 * * * /usr/local/cpanel/bin/backup
 2,58 * * * * /usr/local/bandmin/bandmin
 0 0 * * * /usr/local/bandmin/ipaddrmap\n";
-	close ($roots_cron);
+close ($roots_cron);
 
 print "updating /etc/motd\n";
 unlink '/etc/motd';
