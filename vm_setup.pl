@@ -229,7 +229,6 @@ alias acctinfo="/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.github
 alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/522/bin/json_xs; }; _jsonpp'
 EOF
    close ($roots_bashprofile);
-}
 
 # Fix licenseid_credentials.json file. For use with new store.
 if (-e("/var/cpanel/licenseid_credentials.json")) { 
