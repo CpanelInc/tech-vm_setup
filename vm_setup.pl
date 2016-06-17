@@ -229,7 +229,6 @@ alias acctinfo="/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.github
 alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/522/bin/json_xs; }; _jsonpp'
 EOF
    close ($roots_bashprofile);
-}
 
 # Fix licenseid_credentials.json file. For use with new store.
 if (-e("/var/cpanel/licenseid_credentials.json")) { 
@@ -265,7 +264,8 @@ if ($answer eq "y") {
 
 print "Installing root's crontab...\n";
 sysopen (my $roots_cron, '/var/spool/cron/root', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-print $roots_cron "8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
+print $roots_cron 
+"8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
 30 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_db_cache && /usr/local/cpanel/scripts/update_db_cache
 */5 * * * * /usr/local/cpanel/bin/dcpumon >/dev/null 2>&1
 56 0 * * * /usr/local/cpanel/whostmgr/docroot/cgi/cpaddons_report.pl --notify
