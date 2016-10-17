@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.1';
+my $VERSION = '0.5.4';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -21,20 +21,12 @@ GetOptions (
 );
 
 # add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
-# it seems as though we turned off 208.74.121.103 as a resolver.  So going to use OpenDNS 
-# for now.
 print "adding resolvers\n";
 unlink '/etc/resolv.conf';
 sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
-    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.67.220.220\n" . "nameserver 208.67.222.222\n";
+    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
 close ($etc_resolv_conf);
-
-# move /etc/cpsources.conf out of the way if it exists
-if (-e("/etc/cpsources.conf")) { 
-   print "Found /etc/cpsources.conf file, moving it out of the way!\n";
-   system_formatted ("mv /etc/cpsources.conf /etc/cpsources.conf.vmsetup");
-}
 
 # print header
 print "\nVM Server Setup Script\n" .
@@ -53,8 +45,6 @@ if ($help) {
     print "-------------- \n";
     print "- Installs common packages\n";
     print "- Sets hostname\n";
-    print "- Sets resolvers\n";
-    print "- Builds/updates /var/cpanel/cpnat\n";
     print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
@@ -73,8 +63,20 @@ if ($help) {
 
 # generate random password
 my $rndpass = &random_pass();  
+# generate unique hostnames from OS type, Version and cPanel Version info and time.
 my $time=time;
-my $hostname="daily".$time.".cpanel.vm";
+my %ostype = (
+        "CentOS" => "C",
+        "CloudLinux" => "CL",
+);
+my $OS=qx[ cat /etc/redhat-release ];
+my ($Flavor,$OSVer)=(split(/\s+/,$OS))[0,3];
+$OSVer = substr($OSVer,0,3);
+$OSVer = substr($OSVer,0,1);
+my $cPanelVer=qx[ cat /usr/local/cpanel/version ];
+chomp($cPanelVer);
+$cPanelVer=substr($cPanelVer,3);
+my $hostname = $ostype{$Flavor} . $OSVer . "-" . $cPanelVer . "-" . $time . ".cpanel.vm";
 
 ### and go
 if (-e "/root/vmsetup.lock") {
@@ -101,8 +103,8 @@ print "creating lock file\n";
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils jwhois dev git pydf]\n";
-system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils jwhois dev git pydf -y");
+print "installing utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]\n";
+system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 
 # set hostname
 print "setting hostname\n";
@@ -118,24 +120,32 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
                      "HOSTNAME=$hostname\n";
 close ($etc_network);
 
-# run /scripts/build_cpnat
-# Move the current /var/cpanel/cpnat file out of the way.  
-system_formatted ("mv /var/cpanel/cpnat /var/cpanel/cpnat.vmsetup");
-print "running build_cpnat\n";
-system_formatted ("/scripts/build_cpnat");
-# IF THE ABOVE COMMAND FAILS, THEN WE DON'T KNOW $ip or $natip!!! GET IT FROM /etc/wwwacct.conf
 if (-e("/var/cpanel/cpnat")) { 
    chomp ( $ip = qx(cat /var/cpanel/cpnat | awk '{print\$2}') );
    chomp ( $natip = qx(cat /var/cpanel/cpnat | awk '{print\$1}') );
 }
-else {
-   $ip="208.74.121.106";
-   ($natip)=(split(/\s+/,qx[ cat /etc/wwwacct.conf | grep 'ADDR ' ]))[1];
-   chomp($natip);
-   sysopen (my $cpnat, '/var/cpanel/cpnat', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-   print $cpnat "$natip $ip\n";
-   close ($cpnat);
-}
+
+##############################################################################################
+# NOTE: Running /var/cpanel/cpnat is really no longer necessary on openstack VM's.  
+# This is because of the double-nat configuration these servers have.  
+# I'm commenting out this code for now.  If it turns out that it is causing problems, I'll
+# put it all back. 
+##############################################################################################
+
+# Move the current /var/cpanel/cpnat file out of the way for a backup.  
+#print "moving current /var/cpanel/cpnat file to /var/cpanel/cpnat.vmsetup\n";
+#system_formatted ("mv /var/cpanel/cpnat /var/cpanel/cpnat.vmsetup");
+#else {
+#   $ip="208.74.121.106";
+#   ($natip)=(split(/\s+/,qx[ cat /etc/wwwacct.conf | grep 'ADDR ' ]))[1];
+#   chomp($natip);
+#   sysopen (my $cpnat, '/var/cpanel/cpnat', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+#   print $cpnat "$natip $ip\n";
+#   close ($cpnat);
+#}
+# run /scripts/build_cpnat
+#print "running build_cpnat\n";
+#system_formatted ("/scripts/build_cpnat");
 
 # fix /var/cpanel/mainip file because for some reason it has an old value in it
 system_formatted ("ip=`cat /etc/wwwacct.conf | grep 'ADDR ' | awk '{print \$2}'`; echo -n \$ip > /var/cpanel/mainip");
@@ -218,29 +228,12 @@ if (-e("/root/.bash_profile")) {
    system_formatted ("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
 }
 # Append.
-sysopen (my $roots_bashprofile, '/root/.bash_profile', O_APPEND) or die print_formatted ("$!");
-print $roots_bashprofile <<EOF;
-export EDITOR=vi
-export VISUAL=vi
-alias ll="ls -alh"
-alias dir="ll | grep '^d'"
-alias ssp="curl -sk https://ssp.cpanel.net/run | sh"
-alias acctinfo="/usr/local/cpanel/3rdparty/bin/perl <(curl -s https://raw.githubusercontent.com/cPanelPeter/acctinfo/master/acctinfo)"
-alias jsonpp='function _jsonpp() { cat \$1 | /usr/local/cpanel/3rdparty/perl/522/bin/json_xs; }; _jsonpp'
+open(roots_bashprofile, ">>/root/.bash_profile") or die print_formatted ("$!");
+print roots_bashprofile <<EOF;
+source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
 EOF
-   close ($roots_bashprofile);
-
-# Fix licenseid_credentials.json file. For use with new store.
-if (-e("/var/cpanel/licenseid_credentials.json")) { 
-    print "Patching SSL market files so you can test SSL Market on OpenStack...\n";
-    system_formatted ("mv /var/cpanel/licenseid_credentials.json /var/cpanel/licenseid_credentials.json.vmsetup");
-    sysopen (my $licenseid_credentials, '/var/cpanel/licenseid_credentials.json', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-    print $licenseid_credentials <<EOF;
-{"client_id":"22413248","client_secret":"internalIP"}
-EOF
-    close($licenseid_credentials);
-    system_formatted ("touch /var/cpanel/dev_sandbox");
-}
+close (roots_bashprofile);
+system_formatted ("source /root/.bash_profile");
 
 # upcp
 if (!$full && !$fast) { 
@@ -265,7 +258,8 @@ if ($answer eq "y") {
 print "Installing root's crontab...\n";
 sysopen (my $roots_cron, '/var/spool/cron/root', O_WRONLY|O_CREAT) or die print_formatted ("$!");
 print $roots_cron 
-"8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
+"# This crontab was created by vm_setup script.
+8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
 30 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_db_cache && /usr/local/cpanel/scripts/update_db_cache
 */5 * * * * /usr/local/cpanel/bin/dcpumon >/dev/null 2>&1
 56 0 * * * /usr/local/cpanel/whostmgr/docroot/cgi/cpaddons_report.pl --notify
@@ -291,7 +285,10 @@ print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
 	"WHM: user: root - pass: cpanel1\n" .
 	"cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
 	"Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" . 
-	"The following aliases have also been setup: ssp, acctinfo jsonpp\n"; 
+
+    "WHM - https://" . $ip . ":2087\n" . 
+    "cPanel - https://" . $ip . ":2083\n" . 
+    "Webmail - https://" . $ip . ":2096\n";
 close ($etc_motd);
 
 # disables cphulkd
@@ -305,12 +302,42 @@ system_formatted ('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
 if ($cltrue) { 
+    my $InstLVE=0;
+    my $InstPHPSelector=0;
+    my $InstCageFS=0;
+    print "You selected CloudLinux. Do you want to also install: \n";
+    print "LVE Manager (Y/n): ";
+    $InstLVE=<STDIN>;
+    chomp($InstLVE);
+    $InstLVE=uc($InstLVE);
+    if ($InstLVE eq "" or $InstLVE eq "Y") { $InstLVE=1; } 
+    print "PHP Selector (Y/n): ";
+    $InstPHPSelector=<STDIN>;
+    chomp($InstPHPSelector);
+    $InstPHPSelector=uc($InstPHPSelector);
+    if ($InstPHPSelector eq "" or $InstPHPSelector eq "Y") { $InstPHPSelector=1; } 
+    print "CageFS (Y/n): ";
+    $InstCageFS=<STDIN>;
+    chomp($InstCageFS);
+    $InstCageFS=uc($InstCageFS);
+    if ($InstCageFS eq ""or $InstCageFS eq "Y") { $InstCageFS=1; } 
 	# Remove /var/cpanel/nocloudlinux touch file (if it exists)
 	if (-e("/var/cpanel/nocloudlinux")) { 
 		unlink("/var/cpanel/nocloudlinux");
 	}
 	system_formatted ("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
 	system_formatted ("sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59");
+    if ($InstLVE) { 
+        system_formatted ("yum -y install lvemanager");
+    }
+    if ($InstCageFS) { 
+        system_formatted ("yum -y install cagefs");
+    }
+    if ($InstPHPSelector) { 
+        system_formatted ("yum -y groupinstall alt-php");
+        system_formatted ("yum -y update cagefs lvemanager");
+    }
+    system_formatted ("/usr/local/cpanel/bin/cloudlinux_system_install -k");
 }
 
 # restart cpsrvd 
