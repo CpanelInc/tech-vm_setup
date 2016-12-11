@@ -76,6 +76,7 @@ $OSVer =~ s/\.//g;
 my $cPanelVer=qx[ cat /usr/local/cpanel/version ];
 chomp($cPanelVer);
 $cPanelVer=substr($cPanelVer,3);
+$cPanelVer =~ s/\./-/g;
 my $hostname = $ostype{$Flavor} . $OSVer . "-" . $cPanelVer . "-" . $time . ".cpanel.vm";
 
 ### and go
