@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.4';
+my $VERSION = '0.5.5';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -70,9 +70,9 @@ my %ostype = (
         "CloudLinux" => "CL",
 );
 my $OS=qx[ cat /etc/redhat-release ];
-my ($Flavor,$OSVer)=(split(/\s+/,$OS))[0,3];
+my ($Flavor,$OSVer)=(split(/\s+/,$OS))[0,2];
 $OSVer = substr($OSVer,0,3);
-$OSVer = substr($OSVer,0,1);
+$OSVer =~ s/\.//g;
 my $cPanelVer=qx[ cat /usr/local/cpanel/version ];
 chomp($cPanelVer);
 $cPanelVer=substr($cPanelVer,3);
@@ -108,6 +108,13 @@ system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwh
 
 # set hostname
 print "setting hostname\n";
+# Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
+sysopen (my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY|O_CREAT) or
+	die print_formatted ("$!");
+	print $cloud_cfg "#cloud-config\n" . 
+		"hostname: $hostname\n";
+close ($cloud_cfg);  
+
 system_formatted ("/usr/local/cpanel/bin/set_hostname $hostname");
 
 # set /etc/sysconfig/network
@@ -290,6 +297,10 @@ print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
     "cPanel - https://" . $ip . ":2083\n" . 
     "Webmail - https://" . $ip . ":2096\n";
 close ($etc_motd);
+
+# fix roundcube by forcing a re-install
+print "Fixing roundcube by forcing a re-install\n";
+system_formatted ('/usr/local/cpanel/bin/update-roundcube --force');
 
 # disables cphulkd
 print "disables cphulkd\n";
