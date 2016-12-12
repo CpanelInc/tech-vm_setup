@@ -8,7 +8,7 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.5';
+my $VERSION = '0.5.6';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
@@ -43,18 +43,19 @@ if ($help) {
     print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
-    print "- Installs common packages\n";
+    print "- Installs common/useful packages\n";
     print "- Sets hostname\n";
     print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
     print "- Fixes screen permissions\n";
     print "- Runs cpkeyclt\n";
-    print "- Creates test accounts\n";
+    print "- Creates test account\n";
     print "- Disables cphulkd\n";
     print "- Creates access hash\n";
     print "- Updates motd\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
+    print "- Fixes roundcube corruption (found on some images) by re-installing.\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
@@ -212,23 +213,19 @@ system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
 # create test account
 print "creating test account - cptest\n";
-# <domain> <username> <password> <quota> <theme> <ip[y/n]> <cgi[y/n]> <frontpage [always n]> <maxftp> <maxsql> <maxpop> <maxlist> <maxsub> <bwlimit> <has_shell[y/n]> <owner [root|reseller]> <plan> <maxpark> <maxaddon> <featurelist>
-# NOT INCLUDED above is: <contactemail> <use_registered_nameservers> <language>
-system_formatted ('yes |/usr/local/cpanel/scripts/wwwacct cptest.tld cptest ' . $rndpass . ' 1000 paper_lantern n y n 10 10 10 10 10 1000 n root default 10 10 default');
+system_formatted ('/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass ."');
 print "creating test email - testing\@cptest.tld\n";
-system_formatted ('/usr/local/cpanel/scripts/addpop testing@cptest.tld ' . $rndpass);
+system_formatted ('/usr/bin/uapi --user=cptest Email add_pop email=testing@cptest.tld password=" . $rndpass . "');
 print "creating test database - cptest_testdb\n";
-system_formatted ("mysql -e 'create database cptest_testdb'");
+system_formatted ("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
 print "creating test db user - cptest_testuser\n";
-system_formatted ("mysql -e 'create user \"cptest_testuser\" identified by \" $rndpass \"'");
+system_formatted ("/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=". $rndpass );
 print "adding all privs for cptest_testuser to cptest_testdb\n";
-system_formatted ("mysql -e 'grant all on cptest_testdb.* TO cptest_testuser'");
-system_formatted ("mysql -e 'FLUSH PRIVILEGES'");
-print "mapping cptest_testuser and cptest_testdb to cptest account\n";
-system_formatted ("/usr/local/cpanel/bin/dbmaptool cptest --type mysql --dbusers 'cptest_testuser' --dbs 'cptest_testdb'");
+system_formatted ("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
 print "Updating tweak settings (cpanel.config)...\n";
-system_formatted ("/usr/bin/replace allowremotedomains=0 allowremotedomains=1 allowunregistereddomains=0 allowunregistereddomains=1 -- /var/cpanel/cpanel.config");
+system_formatted ("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains=1");
+system_formatted ("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains=1");
 
 print "Creating /root/.bash_profile aliases...\n";
 if (-e("/root/.bash_profile")) {
@@ -263,28 +260,6 @@ if ($answer eq "y") {
     system_formatted ('/scripts/check_cpanel_rpms --fix');
 }
 
-print "Installing root's crontab...\n";
-sysopen (my $roots_cron, '/var/spool/cron/root', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-print $roots_cron 
-"# This crontab was created by vm_setup script.
-8,23,38,53 * * * * /usr/local/cpanel/whostmgr/bin/dnsqueue > /dev/null 2>&1
-30 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_db_cache && /usr/local/cpanel/scripts/update_db_cache
-*/5 * * * * /usr/local/cpanel/bin/dcpumon >/dev/null 2>&1
-56 0 * * * /usr/local/cpanel/whostmgr/docroot/cgi/cpaddons_report.pl --notify
-7 0 * * * /usr/local/cpanel/scripts/upcp --cron
-0 1 * * * /usr/local/cpanel/scripts/cpbackup
-35 * * * * /usr/bin/test -x /usr/local/cpanel/bin/tail-check && /usr/local/cpanel/bin/tail-check
-30 */2 * * * /usr/local/cpanel/bin/mysqluserstore >/dev/null 2>&1
-15 */2 * * * /usr/local/cpanel/bin/dbindex >/dev/null 2>&1
-45 */4 * * * /usr/bin/test -x /usr/local/cpanel/scripts/update_mailman_cache && /usr/local/cpanel/scripts/update_mailman_cache
-15 */6 * * * /usr/local/cpanel/scripts/recoverymgmt >/dev/null 2>&1
-15 */6 * * * /usr/local/cpanel/scripts/autorepair recoverymgmt >/dev/null 2>&1
-30 5 * * * /usr/local/cpanel/scripts/optimize_eximstats > /dev/null 2>&1
-0 2 * * * /usr/local/cpanel/bin/backup
-2,58 * * * * /usr/local/bandmin/bandmin
-0 0 * * * /usr/local/bandmin/ipaddrmap\n";
-close ($roots_cron);
-
 print "updating /etc/motd\n";
 unlink '/etc/motd';
 my $etc_motd;
@@ -298,10 +273,6 @@ print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
     "cPanel - https://" . $ip . ":2083\n" . 
     "Webmail - https://" . $ip . ":2096\n";
 close ($etc_motd);
-
-# fix roundcube by forcing a re-install
-print "Fixing roundcube by forcing a re-install\n";
-system_formatted ('/usr/local/cpanel/bin/update-roundcube --force');
 
 # disables cphulkd
 print "disables cphulkd\n";
@@ -387,10 +358,9 @@ sub random_pass {
 	my @chars = split(" ", "
       a b c d e f g h j k l m 
       n o p q r s t u v w x y 
-      z - _ % # ! 1 2 3 4 5 6 
-      7 8 9 Z Y X W V U T S R 
-      Q P N M L K J H G F E D 
-      C B A = + "
+      z 1 2 3 4 5 6 7 8 9 Z Y 
+      X W V U T S R Q P N M L 
+      K J H G F E D C B A "
    );
 	srand;
 	my $key=@chars;
