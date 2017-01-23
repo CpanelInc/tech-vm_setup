@@ -8,12 +8,13 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.6';
+my $VERSION = '0.5.7';
 
 # get opts
-my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer);
+my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose);
 GetOptions (
 	"help" => \$help,
+	"verbose" => \$verbose,
 	"full" => \$full,
 	"fast" => \$fast,
 	"force" => \$force,
@@ -50,12 +51,11 @@ if ($help) {
     print "- Fixes /etc/hosts\n";
     print "- Fixes screen permissions\n";
     print "- Runs cpkeyclt\n";
-    print "- Creates test account\n";
+    print "- Creates test account (with email and database)\n";
     print "- Disables cphulkd\n";
     print "- Creates access hash\n";
     print "- Updates motd\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
-    print "- Fixes roundcube corruption (found on some images) by re-installing.\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
@@ -65,20 +65,20 @@ if ($help) {
 # generate random password
 my $rndpass = &random_pass();  
 # generate unique hostnames from OS type, Version and cPanel Version info and time.
+my ($OS_RELEASE, $OS_TYPE,$OS_VERSION) = get_os_info();
 my $time=time;
 my %ostype = (
-        "CentOS" => "C",
-        "CloudLinux" => "CL",
+        "centos" => "c",
+        "cloudlinux" => "cl",
 );
-my $OS=qx[ cat /etc/redhat-release ];
-my ($Flavor,$OSVer)=(split(/\s+/,$OS))[0,2];
-$OSVer = substr($OSVer,0,3);
-$OSVer =~ s/\.//g;
-my $cPanelVer=qx[ cat /usr/local/cpanel/version ];
-chomp($cPanelVer);
-$cPanelVer=substr($cPanelVer,3);
-$cPanelVer =~ s/\./-/g;
-my $hostname = $ostype{$Flavor} . $OSVer . "-" . $cPanelVer . "-" . $time . ".cpanel.vm";
+my $Flavor = $ostype{$OS_TYPE};
+my $versionstripped = $OS_VERSION;
+$versionstripped =~ s/\.//g;
+my $cpVersion=qx[ cat /usr/local/cpanel/version ];
+chomp($cpVersion);
+$cpVersion =~ s/\./-/g;
+$cpVersion = substr($cpVersion,3);
+my $hostname = $Flavor.$versionstripped."-".$cpVersion."-".$time.".cpanel.vm";
 
 ### and go
 if (-e "/root/vmsetup.lock") {
@@ -109,7 +109,7 @@ print "installing utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwg
 system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 
 # set hostname
-print "setting hostname\n";
+print "setting hostname to $hostname\n";
 # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
 sysopen (my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY|O_CREAT) or
 	die print_formatted ("$!");
@@ -208,7 +208,7 @@ print "making access hash\n";
 $ENV{'REMOTE_USER'} = 'root';
 system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
-print "Installing CDB_file.pm Perl Module\n";
+#print "Installing CDB_file.pm Perl Module\n";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
 # create test account
@@ -238,7 +238,6 @@ print roots_bashprofile <<EOF;
 source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
 EOF
 close (roots_bashprofile);
-system_formatted ("source /root/.bash_profile");
 
 # upcp
 if (!$full && !$fast) { 
@@ -284,26 +283,33 @@ print "updating cpanel license\n";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
+if ($OS_TYPE eq "cloudlinux") { 
+	# No need to install CloudLinux. It's already installed
+	$cltrue = 0;
+}
 if ($cltrue) { 
     my $InstLVE=0;
     my $InstPHPSelector=0;
     my $InstCageFS=0;
     print "You selected CloudLinux. Do you want to also install: \n";
-    print "LVE Manager (Y/n): ";
-    $InstLVE=<STDIN>;
-    chomp($InstLVE);
-    $InstLVE=uc($InstLVE);
-    if ($InstLVE eq "" or $InstLVE eq "Y") { $InstLVE=1; } 
-    print "PHP Selector (Y/n): ";
-    $InstPHPSelector=<STDIN>;
-    chomp($InstPHPSelector);
-    $InstPHPSelector=uc($InstPHPSelector);
-    if ($InstPHPSelector eq "" or $InstPHPSelector eq "Y") { $InstPHPSelector=1; } 
     print "CageFS (Y/n): ";
     $InstCageFS=<STDIN>;
     chomp($InstCageFS);
     $InstCageFS=uc($InstCageFS);
-    if ($InstCageFS eq ""or $InstCageFS eq "Y") { $InstCageFS=1; } 
+    if ($InstCageFS eq "" or $InstCageFS eq "Y") { $InstCageFS=1; } 
+   	print "LVE Manager (Y/n): ";
+   	$InstLVE=<STDIN>;
+   	chomp($InstLVE);
+   	$InstLVE=uc($InstLVE);
+   	if ($InstLVE eq "" or $InstLVE eq "Y") { $InstLVE=1; } 
+	# PHP Selector requires CageFS, so if not selected/installed, then no need to ask.
+	if ($InstCageFS) { 
+    	print "PHP Selector (Y/n): ";
+    	$InstPHPSelector=<STDIN>;
+    	chomp($InstPHPSelector);
+    	$InstPHPSelector=uc($InstPHPSelector);
+    	if ($InstPHPSelector eq "" or $InstPHPSelector eq "Y") { $InstPHPSelector=1; } 
+	}
 	# Remove /var/cpanel/nocloudlinux touch file (if it exists)
 	if (-e("/var/cpanel/nocloudlinux")) { 
 		unlink("/var/cpanel/nocloudlinux");
@@ -334,13 +340,18 @@ print "\n";
 if ($cltrue) { 
 	print "\n\nCloudLinux installed! A reboot is required!\n\n";
 }
+else { 
+	print "\n\nYou should log out and back in.\n\n";
+}
 
 exit;
 
 ### subs
 sub print_formatted {
     my @input = split /\n/, $_[0];
-    foreach (@input) { print "    $_\n"; }
+	if ($verbose) { 
+	    foreach (@input) { print "    $_\n"; }
+	}
 }
 
 sub system_formatted {
@@ -369,4 +380,36 @@ sub random_pass {
 		$password .= $chars[$_rand];
 	}
 	return $password;
+}
+
+sub get_os_info {
+    my $ises = 0;
+    my $version;
+    my $os      = "UNKNOWN";
+    my $release = "UNKNOWN";
+    my $os_release_file;
+    foreach my $test_release_file ( 'CentOS-release', 'redhat-release', 'system-release' ) {
+        if ( -e '/etc/' . $test_release_file ) {
+            if ( ( ($os) = $test_release_file =~ m/^([^\-_]+)/ )[0] ) {
+                $os = lc $os;
+                $os_release_file = '/etc/' . $test_release_file;
+                if ( $os eq 'system' ) {
+                    $os = 'amazon';
+                }
+                last;
+            }
+        }
+    }
+    if ( open my $fh, '<', $os_release_file ) {
+        my $line = readline $fh;
+        close $fh;
+        chomp $line;
+        if ( length $line >= 4 ) { $release = $line; }
+        if ( $line =~ m/(?:Corporate|Advanced\sServer|Enterprise|Amazon)/i ) { $ises    = 1; }
+        elsif ( $line =~ /CloudLinux|CentOS/i ) { $ises    = 2; }
+        if ( $line =~ /(\d+\.\d+)/ ) { $version = $1; }
+        elsif ( $line =~ /(\d+)/ )      { $version = $1; }
+        if ( $line =~ /(centos|cloudlinux|amazon)/i ) { $os = lc $1; }
+    }
+    return ( $release, $os, $version, $ises );
 }
