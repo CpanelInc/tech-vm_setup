@@ -8,10 +8,14 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.7';
+my $VERSION = '0.5.9';
 
 # get opts
 my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose);
+our $spincounter;
+my $InstPHPSelector=0;
+my $InstCageFS=0;
+
 GetOptions (
 	"help" => \$help,
 	"verbose" => \$verbose,
@@ -22,7 +26,7 @@ GetOptions (
 );
 
 # add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
-print "adding resolvers\n";
+print "\nadding resolvers ";
 unlink '/etc/resolv.conf';
 sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
@@ -40,6 +44,7 @@ if ($help) {
     print "-------------- \n";
     print "--force: Ignores previous run check\n";
     print "--fast: Skips all optional setup functions\n";
+    print "--verbose: pretty self explanatory\n";
     print "--full: Passes yes to all optional setup functions\n";
     print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
     print "Full list of things this does: \n";
@@ -62,8 +67,6 @@ if ($help) {
     exit;
 }
 
-# generate random password
-my $rndpass = &random_pass();  
 # generate unique hostnames from OS type, Version and cPanel Version info and time.
 my ($OS_RELEASE, $OS_TYPE,$OS_VERSION) = get_os_info();
 my $time=time;
@@ -81,6 +84,7 @@ $cpVersion = substr($cpVersion,3);
 my $hostname = $Flavor.$versionstripped."-".$cpVersion."-".$time.".cpanel.vm";
 
 ### and go
+
 if (-e "/root/vmsetup.lock") {
     if (!$force)
     {
@@ -91,6 +95,7 @@ if (-e "/root/vmsetup.lock") {
         print "/root/vmsetup.lock exists. --force passed. Ignoring...\n";
     }
 }
+
 if($full) {
     print "--full passed. Passing y to all optional setup options.\n\n";
     chomp ($answer="y");
@@ -101,15 +106,15 @@ if($fast) {
 }
 
 # create lock file
-print "creating lock file\n"; 
+print "\ncreating lock file "; 
 system_formatted ("touch /root/vmsetup.lock");
 
 # check for and install prereqs
-print "installing utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]\n";
+print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
 system_formatted ("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 
 # set hostname
-print "setting hostname to $hostname\n";
+print "\nsetting hostname to $hostname  ";
 # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
 sysopen (my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY|O_CREAT) or
 	die print_formatted ("$!");
@@ -119,8 +124,11 @@ close ($cloud_cfg);
 
 system_formatted ("/usr/local/cpanel/bin/set_hostname $hostname");
 
+# generate random password
+my $rndpass = &random_pass();  
+
 # set /etc/sysconfig/network
-print "updating /etc/sysconfig/network\n";
+print "\nupdating /etc/sysconfig/network  ";
 unlink '/etc/sysconfig/network';
 sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
@@ -134,39 +142,17 @@ if (-e("/var/cpanel/cpnat")) {
    chomp ( $natip = qx(cat /var/cpanel/cpnat | awk '{print\$1}') );
 }
 
-##############################################################################################
-# NOTE: Running /var/cpanel/cpnat is really no longer necessary on openstack VM's.  
-# This is because of the double-nat configuration these servers have.  
-# I'm commenting out this code for now.  If it turns out that it is causing problems, I'll
-# put it all back. 
-##############################################################################################
-
-# Move the current /var/cpanel/cpnat file out of the way for a backup.  
-#print "moving current /var/cpanel/cpnat file to /var/cpanel/cpnat.vmsetup\n";
-#system_formatted ("mv /var/cpanel/cpnat /var/cpanel/cpnat.vmsetup");
-#else {
-#   $ip="208.74.121.106";
-#   ($natip)=(split(/\s+/,qx[ cat /etc/wwwacct.conf | grep 'ADDR ' ]))[1];
-#   chomp($natip);
-#   sysopen (my $cpnat, '/var/cpanel/cpnat', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-#   print $cpnat "$natip $ip\n";
-#   close ($cpnat);
-#}
-# run /scripts/build_cpnat
-#print "running build_cpnat\n";
-#system_formatted ("/scripts/build_cpnat");
-
 # fix /var/cpanel/mainip file because for some reason it has an old value in it
 system_formatted ("ip=`cat /etc/wwwacct.conf | grep 'ADDR ' | awk '{print \$2}'`; echo -n \$ip > /var/cpanel/mainip");
 
 # create .whostmgrft
-print "creating /etc/.whostmgrft\n";
+print "\ncreating /etc/.whostmgrft  ";
 sysopen (my $etc_whostmgrft, '/etc/.whostmgrft', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
 close ($etc_whostmgrft);
 
 # correct wwwacct.conf
-print "correcting /etc/wwwacct.conf\n";
+print "\ncorrecting /etc/wwwacct.conf  ";
 unlink '/etc/wwwacct.conf';
 sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
@@ -190,7 +176,7 @@ sysopen (my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY|O_CREAT) or
 close ($etc_wwwacct_conf);
 
 # correct /etc/hosts
-print "correcting /etc/hosts\n";
+print "\ncorrecting /etc/hosts  ";
 unlink '/etc/hosts';
 sysopen (my $etc_hosts, '/etc/hosts', O_WRONLY|O_CREAT) or
     die print_formatted ("$!");
@@ -200,34 +186,34 @@ sysopen (my $etc_hosts, '/etc/hosts', O_WRONLY|O_CREAT) or
 close ($etc_hosts);
 
 # fix screen perms
-print "fixing screen perms\n";
+print "\nfixing screen perms  ";
 system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
 # make accesshash
-print "making access hash\n";
+print "\nmaking access hash  ";
 $ENV{'REMOTE_USER'} = 'root';
 system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
 
-#print "Installing CDB_file.pm Perl Module\n";
+print "\nInstalling CDB_file.pm Perl Module  ";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
 # create test account
-print "creating test account - cptest\n";
-system_formatted ('/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass ."');
-print "creating test email - testing\@cptest.tld\n";
+print "\ncreating test account - cptest  ";
+system_formatted ('/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass ." pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited');
+print "\ncreating test email - testing\@cptest.tld  ";
 system_formatted ('/usr/bin/uapi --user=cptest Email add_pop email=testing@cptest.tld password=" . $rndpass . "');
-print "creating test database - cptest_testdb\n";
+print "\ncreating test database - cptest_testdb  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
-print "creating test db user - cptest_testuser\n";
+print "\ncreating test db user - cptest_testuser  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=". $rndpass );
-print "adding all privs for cptest_testuser to cptest_testdb\n";
+print "\nadding all privs for cptest_testuser to cptest_testdb  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
-print "Updating tweak settings (cpanel.config)...\n";
-system_formatted ("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains=1");
-system_formatted ("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains=1");
+print "\nUpdating tweak settings (cpanel.config)  ";
+system_formatted ("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
+system_formatted ("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
 
-print "Creating /root/.bash_profile aliases...\n";
+print "\nCreating /root/.bash_profile aliases ";
 if (-e("/root/.bash_profile")) {
    # Backup the current one if it exists. 
    system_formatted ("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
@@ -241,25 +227,25 @@ close (roots_bashprofile);
 
 # upcp
 if (!$full && !$fast) { 
-   print "would you like to run upcp now? [n] \n";
+   print "would you like to run upcp now? [n]: ";
    chomp ($answer = <STDIN>);
 }
 if ($answer eq "y") {
-    print "\nrunning upcp \n ";
+    print "\nrunning upcp ";
     system_formatted ('/scripts/upcp');
 }
 
 # running another check_cpanel_rpms
 if (!$full && !$fast) { 
-   print "would you like to run check_cpanel_rpms now? [n] \n";
+   print "\nwould you like to run check_cpanel_rpms now? [n]: ";
    chomp ($answer = <STDIN>);
 }
 if ($answer eq "y") {
-    print "\nrunning check_cpanel_rpms \n ";
+    print "\nrunning check_cpanel_rpms  ";
     system_formatted ('/scripts/check_cpanel_rpms --fix');
 }
 
-print "updating /etc/motd\n";
+print "\nupdating /etc/motd  ";
 unlink '/etc/motd';
 my $etc_motd;
 sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
@@ -273,68 +259,47 @@ print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
     "Webmail - https://" . $ip . ":2096\n";
 close ($etc_motd);
 
-# disables cphulkd
-print "disables cphulkd\n";
+# disable cphulkd
+print "\ndisabling cphulkd  ";
 system_formatted ('/usr/local/cpanel/etc/init/stopcphulkd');
 system_formatted ('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 
 # update cplicense
-print "updating cpanel license\n";
+print "\nupdating cpanel license  ";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
-if ($OS_TYPE eq "cloudlinux") { 
+if ($OS_TYPE eq "cloudlinux" and !$force) { 
+    print "\nCloudLinux already detected, no need to install CloudLinux.  "; 
 	# No need to install CloudLinux. It's already installed
 	$cltrue = 0;
 }
 if ($cltrue) { 
-    my $InstLVE=0;
-    my $InstPHPSelector=0;
-    my $InstCageFS=0;
-    print "You selected CloudLinux. Do you want to also install: \n";
-    print "CageFS (Y/n): ";
-    $InstCageFS=<STDIN>;
-    chomp($InstCageFS);
-    $InstCageFS=uc($InstCageFS);
-    if ($InstCageFS eq "" or $InstCageFS eq "Y") { $InstCageFS=1; } 
-   	print "LVE Manager (Y/n): ";
-   	$InstLVE=<STDIN>;
-   	chomp($InstLVE);
-   	$InstLVE=uc($InstLVE);
-   	if ($InstLVE eq "" or $InstLVE eq "Y") { $InstLVE=1; } 
-	# PHP Selector requires CageFS, so if not selected/installed, then no need to ask.
-	if ($InstCageFS) { 
-    	print "PHP Selector (Y/n): ";
-    	$InstPHPSelector=<STDIN>;
-    	chomp($InstPHPSelector);
-    	$InstPHPSelector=uc($InstPHPSelector);
-    	if ($InstPHPSelector eq "" or $InstPHPSelector eq "Y") { $InstPHPSelector=1; } 
-	}
 	# Remove /var/cpanel/nocloudlinux touch file (if it exists)
 	if (-e("/var/cpanel/nocloudlinux")) { 
+        print "\nremoving /var/cpanel/nocloudlinux touch file  ";
 		unlink("/var/cpanel/nocloudlinux");
 	}
+    print "\ndownloading cldeploy shell file  ";
 	system_formatted ("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
-	system_formatted ("sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59");
-    if ($InstLVE) { 
-        system_formatted ("yum -y install lvemanager");
-    }
-    if ($InstCageFS) { 
-        system_formatted ("yum -y install cagefs");
-    }
-    if ($InstPHPSelector) { 
-        system_formatted ("yum -y groupinstall alt-php");
-        system_formatted ("yum -y update cagefs lvemanager");
-    }
-    system_formatted ("/usr/local/cpanel/bin/cloudlinux_system_install -k");
+    print "\nexecuting cldeploy shell file (Note: this runs a upcp and can take time)  ";
+	my $clDeploy=qx[ echo | sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59 ; echo ];
+	print "\ninstalling CageFS  ";
+    system_formatted ("echo | yum -y install cagefs");
+	print "\ninitializing CageFS  ";
+    system_formatted ("echo | cagefsctl --init");
+	print "\ninstalling PHP Selector  ";
+    system_formatted ("echo | yum -y groupinstall alt-php");
+	print "\nupdating CageFS/LVE Manager  ";
+    system_formatted ("echo | yum -y update cagefs lvemanager");
 }
 
 # restart cpsrvd 
-print "Restarting cpsvrd...\n";
+print "\nRestarting cpsvrd  ";
 system_formatted ("/usr/local/cpanel/scripts/restartsrv_cpsrvd");
 
 # exit cleanly
-print "Setup complete\n\n";
+print "\nSetup complete\n\n";
 system_formatted ('cat /etc/motd');
 print "\n"; 
 if ($cltrue) { 
@@ -352,6 +317,9 @@ sub print_formatted {
 	if ($verbose) { 
 	    foreach (@input) { print "    $_\n"; }
 	}
+    else { 
+        &spin;
+    }
 }
 
 sub system_formatted {
@@ -363,7 +331,7 @@ sub system_formatted {
 }
 
 sub random_pass { 
-	my $password_length=12;
+	my $password_length=25;
 	my $password;
 	my $_rand;
 	my @chars = split(" ", "
@@ -373,12 +341,20 @@ sub random_pass {
       X W V U T S R Q P N M L 
       K J H G F E D C B A "
    );
-	srand;
-	my $key=@chars;
-	for (my $i=1; $i <= $password_length ;$i++) {
-		$_rand = int(rand $key);
-		$password .= $chars[$_rand];
-	}
+    my $pwgen_installed=qx[ yum list installed | grep 'pwgen' ];
+    if ($pwgen_installed) { 
+        print "\npwgen installed successfully, using it to generate random password\n";
+        $password = `pwgen -Bs 15 1`;
+    } 
+    else {     
+        print "pwgen didn't install successfully, using internal function to generate random password\n";
+	    srand;
+	    my $key=@chars;
+	    for (my $i=1; $i <= $password_length ;$i++) {
+		    $_rand = int(rand $key);
+		    $password .= $chars[$_rand];
+	    }
+    }
 	return $password;
 }
 
@@ -413,3 +389,10 @@ sub get_os_info {
     }
     return ( $release, $os, $version, $ises );
 }
+
+sub spin {
+    my %spinner = ( '|' => '/', '/' => '-', '-' => '\\', '\\' => '|' );
+    $spincounter = ( !defined $spincounter ) ? '|' : $spinner{$spincounter};
+    print STDERR "\b$spincounter";
+}
+
