@@ -58,7 +58,7 @@ if ($help) {
     print "- Runs cpkeyclt\n";
     print "- Creates test account (with email and database)\n";
     print "- Disables cphulkd\n";
-    print "- Creates access hash\n";
+    print "- Creates api key\n";
     print "- Updates motd\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
     print "- Runs upcp (optional)\n";
