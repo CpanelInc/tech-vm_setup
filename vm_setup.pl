@@ -192,6 +192,7 @@ system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 # create api token
 print "\ncreating api token";
 $ENV{'REMOTE_USER'} = 'root';
+# will need to rework this so that it traps output and spits the token into /etc/motd
 system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=setup acl-1=all');
 
 print "\nInstalling CDB_file.pm Perl Module  ";
@@ -330,7 +331,33 @@ sub system_formatted {
     close $cmd;
 }
 
-sub random_pass { 
+sub system_formatted_token {
+    open (my $cmd, "-|", "$_[0]");
+    while (<$cmd>) {
+        print_formatted_token("$_");
+    }
+    close $cmd;
+}
+
+sub print_formatted_token {
+    my @input = split /\n/, $_[0];
+        # grab token from input - this needs testing
+        foreach (@input) {
+            if ($_ ~= /^token:/) {
+                my @token = split /:/, $_;
+# eventually need to return this value and add to motd
+                print "$token[1]\n";
+            }
+        }
+	if ($verbose) { 
+	    foreach (@input) { print "    $_\n"; }
+	}
+    else { 
+        &spin;
+    }
+}
+
+sub random_pass {
 	my $password_length=25;
 	my $password;
 	my $_rand;
@@ -395,4 +422,3 @@ sub spin {
     $spincounter = ( !defined $spincounter ) ? '|' : $spinner{$spincounter};
     print STDERR "\b$spincounter";
 }
-
