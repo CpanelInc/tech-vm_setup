@@ -192,7 +192,7 @@ system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 # create api token
 print "\ncreating api token";
 $ENV{'REMOTE_USER'} = 'root';
-system_formatted ('whmapi1 api_token_create token_name=setup acl-1=all');
+system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=setup acl-1=all');
 
 print "\nInstalling CDB_file.pm Perl Module  ";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
