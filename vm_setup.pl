@@ -315,6 +315,13 @@ exit;
 ### subs
 sub print_formatted {
     my @input = split /\n/, $_[0];
+        foreach (@input) {
+            if ($_ =~ /token:/) {
+                (my $key, my $token) = split /:/, $_;
+                print $token . "\n";
+            }
+        }
+
 	if ($verbose) { 
 	    foreach (@input) { print "    $_\n"; }
 	}
@@ -331,25 +338,7 @@ sub system_formatted {
         print_formatted("$_");
     }
     close $cmd;
-
-    if ($arg =~ /api_token_create/) {
-# add to motd instead of printing
-print $arg . "\n";
-    }
 }
-
-#sub get_token {
-#    my @input = split /\n/, $_[0];
-
-    # grab token from input - this needs testing
-#    foreach (@input) {
-#        if ($_ ~= /^token:/) {
-#            my @token = split /:/, $_;
-# eventually need to return this value and add to motd
-#            print "$token[1]\n";
-#        }
-#    }
-#}
 
 sub random_pass {
 	my $password_length=25;
