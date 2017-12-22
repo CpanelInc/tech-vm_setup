@@ -247,18 +247,7 @@ if ($answer eq "y") {
 }
 
 print "\nupdating /etc/motd  ";
-unlink '/etc/motd';
-my $etc_motd;
-sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
-	"WHM: user: root - pass: cpanel1\n" .
-	"cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
-	"Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" . 
-
-    "WHM - https://" . $ip . ":2087\n" . 
-    "cPanel - https://" . $ip . ":2083\n" . 
-    "Webmail - https://" . $ip . ":2096\n";
-close ($etc_motd);
+setup_motd();
 
 # disable cphulkd
 print "\ndisabling cphulkd  ";
@@ -398,6 +387,21 @@ sub get_os_info {
         if ( $line =~ /(centos|cloudlinux|amazon)/i ) { $os = lc $1; }
     }
     return ( $release, $os, $version, $ises );
+}
+
+sub setup_motd {
+    unlink '/etc/motd';
+    my $etc_motd;
+    sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+    print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
+        "WHM: user: root - pass: cpanel1\n" .
+        "cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
+        "Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" .
+
+        "WHM - https://" . $ip . ":2087\n" .
+        "cPanel - https://" . $ip . ":2083\n" .
+        "Webmail - https://" . $ip . ":2096\n";
+    close ($etc_motd);
 }
 
 sub spin {
