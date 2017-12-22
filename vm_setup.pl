@@ -193,7 +193,7 @@ system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 print "\ncreating api token";
 $ENV{'REMOTE_USER'} = 'root';
 # will need to rework this so that it traps output and spits the token into /etc/motd
-system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=setup acl-1=all');
+system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
 
 print "\nInstalling CDB_file.pm Perl Module  ";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
@@ -324,38 +324,32 @@ sub print_formatted {
 }
 
 sub system_formatted {
-    open (my $cmd, "-|", "$_[0]");
+    my $arg = $_[0];
+
+    open (my $cmd, "-|", "$arg");
     while (<$cmd>) {
         print_formatted("$_");
     }
     close $cmd;
-}
 
-sub system_formatted_token {
-    open (my $cmd, "-|", "$_[0]");
-    while (<$cmd>) {
-        print_formatted_token("$_");
+    if ($arg =~ /api_token_create/) {
+# add to motd instead of printing
+print $arg . "\n";
     }
-    close $cmd;
 }
 
-sub print_formatted_token {
-    my @input = split /\n/, $_[0];
-        # grab token from input - this needs testing
-        foreach (@input) {
-            if ($_ ~= /^token:/) {
-                my @token = split /:/, $_;
+#sub get_token {
+#    my @input = split /\n/, $_[0];
+
+    # grab token from input - this needs testing
+#    foreach (@input) {
+#        if ($_ ~= /^token:/) {
+#            my @token = split /:/, $_;
 # eventually need to return this value and add to motd
-                print "$token[1]\n";
-            }
-        }
-	if ($verbose) { 
-	    foreach (@input) { print "    $_\n"; }
-	}
-    else { 
-        &spin;
-    }
-}
+#            print "$token[1]\n";
+#        }
+#    }
+#}
 
 sub random_pass {
 	my $password_length=25;
