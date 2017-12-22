@@ -8,10 +8,10 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.9';
+my $VERSION = '0.6.0';
 
 # get opts
-my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose);
+my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose, $token);
 our $spincounter;
 my $InstPHPSelector=0;
 my $InstCageFS=0;
@@ -192,7 +192,6 @@ system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 # create api token
 print "\ncreating api token";
 $ENV{'REMOTE_USER'} = 'root';
-# will need to rework this so that it traps output and spits the token into /etc/motd
 system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
 
 print "\nInstalling CDB_file.pm Perl Module  ";
@@ -306,8 +305,7 @@ sub print_formatted {
     my @input = split /\n/, $_[0];
         foreach (@input) {
             if ($_ =~ /token:/) {
-                (my $key, my $token) = split /:/, $_;
-                print $token . "\n";
+                (my $key, $token) = split /:/, $_;
             }
         }
 
@@ -400,7 +398,9 @@ sub setup_motd {
 
         "WHM - https://" . $ip . ":2087\n" .
         "cPanel - https://" . $ip . ":2083\n" .
-        "Webmail - https://" . $ip . ":2096\n";
+        "Webmail - https://" . $ip . ":2096\n\n" .
+
+        "Token name - all_access: " . $token . "\n";
     close ($etc_motd);
 }
 
