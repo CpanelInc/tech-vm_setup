@@ -8,10 +8,10 @@ use Getopt::Long;
 use Fcntl;
 $| = 1;
 
-my $VERSION = '0.5.9';
+my $VERSION = '0.6.0';
 
 # get opts
-my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose);
+my ($ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose, $token);
 our $spincounter;
 my $InstPHPSelector=0;
 my $InstCageFS=0;
@@ -58,7 +58,7 @@ if ($help) {
     print "- Runs cpkeyclt\n";
     print "- Creates test account (with email and database)\n";
     print "- Disables cphulkd\n";
-    print "- Creates access hash\n";
+    print "- Creates api key\n";
     print "- Updates motd\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
     print "- Runs upcp (optional)\n";
@@ -189,10 +189,10 @@ close ($etc_hosts);
 print "\nfixing screen perms  ";
 system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
-# make accesshash
-print "\nmaking access hash  ";
+# create api token
+print "\ncreating api token";
 $ENV{'REMOTE_USER'} = 'root';
-system_formatted ('/usr/local/cpanel/bin/realmkaccesshash');
+system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
 
 print "\nInstalling CDB_file.pm Perl Module  ";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
@@ -246,18 +246,7 @@ if ($answer eq "y") {
 }
 
 print "\nupdating /etc/motd  ";
-unlink '/etc/motd';
-my $etc_motd;
-sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
-	"WHM: user: root - pass: cpanel1\n" .
-	"cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
-	"Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" . 
-
-    "WHM - https://" . $ip . ":2087\n" . 
-    "cPanel - https://" . $ip . ":2083\n" . 
-    "Webmail - https://" . $ip . ":2096\n";
-close ($etc_motd);
+setup_motd();
 
 # disable cphulkd
 print "\ndisabling cphulkd  ";
@@ -314,6 +303,12 @@ exit;
 ### subs
 sub print_formatted {
     my @input = split /\n/, $_[0];
+        foreach (@input) {
+            if ($_ =~ /token:/) {
+                (my $key, $token) = split /:/, $_;
+            }
+        }
+
 	if ($verbose) { 
 	    foreach (@input) { print "    $_\n"; }
 	}
@@ -323,14 +318,16 @@ sub print_formatted {
 }
 
 sub system_formatted {
-    open (my $cmd, "-|", "$_[0]");
+    my $arg = $_[0];
+
+    open (my $cmd, "-|", "$arg");
     while (<$cmd>) {
         print_formatted("$_");
     }
     close $cmd;
 }
 
-sub random_pass { 
+sub random_pass {
 	my $password_length=25;
 	my $password;
 	my $_rand;
@@ -390,9 +387,25 @@ sub get_os_info {
     return ( $release, $os, $version, $ises );
 }
 
+sub setup_motd {
+    unlink '/etc/motd';
+    my $etc_motd;
+    sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
+    print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
+        "WHM: user: root - pass: cpanel1\n" .
+        "cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
+        "Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" .
+
+        "WHM - https://" . $ip . ":2087\n" .
+        "cPanel - https://" . $ip . ":2083\n" .
+        "Webmail - https://" . $ip . ":2096\n\n" .
+
+        "Token name - all_access: " . $token . "\n";
+    close ($etc_motd);
+}
+
 sub spin {
     my %spinner = ( '|' => '/', '/' => '-', '-' => '\\', '\\' => '|' );
     $spincounter = ( !defined $spincounter ) ? '|' : $spinner{$spincounter};
     print STDERR "\b$spincounter";
 }
-
