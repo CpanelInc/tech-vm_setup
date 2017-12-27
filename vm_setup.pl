@@ -199,13 +199,13 @@ system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
 # create test account
 print "\ncreating test account - cptest  ";
-system_formatted ('/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass ." pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited');
+system_formatted ("/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited");
 print "\ncreating test email - testing\@cptest.tld  ";
-system_formatted ('/usr/bin/uapi --user=cptest Email add_pop email=testing@cptest.tld password=" . $rndpass . "');
+system_formatted ("/usr/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass);
 print "\ncreating test database - cptest_testdb  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
 print "\ncreating test db user - cptest_testuser  ";
-system_formatted ("/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=". $rndpass );
+system_formatted ("/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass);
 print "\nadding all privs for cptest_testuser to cptest_testdb  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
@@ -341,7 +341,7 @@ sub random_pass {
     my $pwgen_installed=qx[ yum list installed | grep 'pwgen' ];
     if ($pwgen_installed) { 
         print "\npwgen installed successfully, using it to generate random password\n";
-        $password = `pwgen -Bs 15 1`;
+        $password = `pwgen -Bs 25 1`;
     } 
     else {     
         print "pwgen didn't install successfully, using internal function to generate random password\n";
