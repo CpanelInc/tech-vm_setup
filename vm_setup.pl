@@ -189,10 +189,14 @@ close ($etc_hosts);
 print "\nfixing screen perms  ";
 system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
+add_motd("VM Setup Script created the following test accounts:\n");
+add_motd("one-liner for access to WHM root access:\n", qw(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n");
+
 # create api token
 print "\ncreating api token";
 $ENV{'REMOTE_USER'} = 'root';
 system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
+add_motd("Token name - all_access: " . $token . "\n");
 
 print "\nInstalling CDB_file.pm Perl Module  ";
 system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
@@ -200,8 +204,12 @@ system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 # create test account
 print "\ncreating test account - cptest  ";
 system_formatted ("/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited");
+add_motd("one-liner for access to cPanel user: cptest\n", qw(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n");
+
 print "\ncreating test email - testing\@cptest.tld  ";
 system_formatted ("/usr/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass);
+add_motd("one-liner for access to test email account: testing\@cptest.tld\n", qw(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n");
+
 print "\ncreating test database - cptest_testdb  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
 print "\ncreating test db user - cptest_testuser  ";
@@ -244,9 +252,6 @@ if ($answer eq "y") {
     print "\nrunning check_cpanel_rpms  ";
     system_formatted ('/scripts/check_cpanel_rpms --fix');
 }
-
-print "\nupdating /etc/motd  ";
-setup_motd();
 
 # disable cphulkd
 print "\ndisabling cphulkd  ";
@@ -387,20 +392,14 @@ sub get_os_info {
     return ( $release, $os, $version, $ises );
 }
 
-sub setup_motd {
-    unlink '/etc/motd';
+# appends argument(s) to the end of /etc/motd
+sub add_motd {
+
     my $etc_motd;
-    sysopen ($etc_motd, '/etc/motd', O_WRONLY|O_CREAT) or die print_formatted ("$!");
-    print $etc_motd "VM Setup Script created the following test accounts:\n\n" .
-        "WHM: user: root - pass: cpanel1\n" .
-        "cPanel: user: cptest - pass: " . $rndpass . "\n(Domain: cptest.tld cPanel Account: cptest)\n" .
-        "Webmail: user: testing\@cptest.tld - pass: " . $rndpass . "\n\n" .
+    open ($etc_motd, ">>", '/etc/motd') or die print_formatted ("$!");
 
-        "WHM - https://" . $ip . ":2087\n" .
-        "cPanel - https://" . $ip . ":2083\n" .
-        "Webmail - https://" . $ip . ":2096\n\n" .
+    print $etc_motd "@_\n";
 
-        "Token name - all_access: " . $token . "\n";
     close ($etc_motd);
 }
 
