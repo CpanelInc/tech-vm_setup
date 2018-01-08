@@ -4,6 +4,10 @@
 
 use strict;
 use warnings;
+
+# ignore warnings when using qw since we are intentionally using commas with qw
+no warnings 'qw';
+
 use Getopt::Long;
 use Fcntl;
 $| = 1;
