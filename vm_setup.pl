@@ -137,6 +137,10 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
                      "HOSTNAME=$hostname\n";
 close ($etc_network);
 
+# build cpnat before attempting to pull IP address info
+print "building cpnat\n";
+system_formatted("/usr/local/cpanel/scripts/build_cpnat");
+
 if (-e("/var/cpanel/cpnat")) { 
    chomp ( $ip = qx(cat /var/cpanel/cpnat | awk '{print\$2}') );
    chomp ( $natip = qx(cat /var/cpanel/cpnat | awk '{print\$1}') );
