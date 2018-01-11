@@ -5,9 +5,6 @@
 use strict;
 use warnings;
 
-# ignore warnings when using qw since we are intentionally using commas with qw
-no warnings 'qw';
-
 use Getopt::Long;
 use Fcntl;
 $| = 1;
@@ -141,7 +138,9 @@ sysopen (my $etc_network, '/etc/sysconfig/network', O_WRONLY|O_CREAT) or
                      "HOSTNAME=$hostname\n";
 close ($etc_network);
 
-# build cpnat before attempting to pull IP address info
+# '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
+# on new openstack builds
+# build cpnat too ensure that '/var/cpanel/cpnat' has the correct IPs in it
 print "building cpnat\n";
 system_formatted("/usr/local/cpanel/scripts/build_cpnat");
 
@@ -198,7 +197,7 @@ print "\nfixing screen perms  ";
 system_formatted ('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
 add_motd("VM Setup Script created the following test accounts:\n");
-add_motd("one-liner for access to WHM root access:\n", qw(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n");
+add_motd("one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n");
 
 # create api token
 print "\ncreating api token";
@@ -212,11 +211,11 @@ system_formatted ('/usr/local/cpanel/bin/cpanm --force CDB_File');
 # create test account
 print "\ncreating test account - cptest  ";
 system_formatted ("/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited");
-add_motd("one-liner for access to cPanel user: cptest\n", qw(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n");
+add_motd("one-liner for access to cPanel user: cptest\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n");
 
 print "\ncreating test email - testing\@cptest.tld  ";
 system_formatted ("/usr/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass);
-add_motd("one-liner for access to test email account: testing\@cptest.tld\n", qw(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n");
+add_motd("one-liner for access to test email account: testing\@cptest.tld\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n");
 
 print "\ncreating test database - cptest_testdb  ";
 system_formatted ("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
@@ -354,7 +353,7 @@ sub random_pass {
     my $pwgen_installed=qx[ yum list installed | grep 'pwgen' ];
     if ($pwgen_installed) { 
         print "\npwgen installed successfully, using it to generate random password\n";
-        $password = `pwgen -Bs 25 1`;
+        $password = qx[ pwgen -Bs 25 1 ];
     } 
     else {     
         print "pwgen didn't install successfully, using internal function to generate random password\n";
