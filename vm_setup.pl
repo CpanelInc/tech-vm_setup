@@ -316,7 +316,7 @@ sub print_formatted {
 }
 
 sub system_formatted {
-    my $arg = @_;
+    my $arg = @_[0];
     open( my $cmd, "-|", "$arg" );
     while (<$cmd>) {
         print_formatted("$_");
