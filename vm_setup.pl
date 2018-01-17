@@ -237,11 +237,11 @@ if (-e("/root/.bash_profile")) {
    system_formatted ("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
 }
 # Append.
-open(roots_bashprofile, ">>/root/.bash_profile") or die print_formatted ("$!");
-print roots_bashprofile <<EOF;
+open($roots_bashprofile, ">>", 'root/.bash_profile') or die print_formatted ("$!");
+print $roots_bashprofile <<EOF;
 source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
 EOF
-close (roots_bashprofile);
+close ($roots_bashprofile);
 
 # upcp
 if (!$full && !$fast) { 
