@@ -319,7 +319,8 @@ exit;
 
 ### subs
 sub print_formatted {
-    my @input = split /\n/, $_[0];
+    my $lines = @_;
+    my @input = split /\n/, $lines;
         foreach (@input) {
             if ($_ =~ /token:/) {
                 (my $key, $token) = split /:/, $_;
@@ -335,8 +336,7 @@ sub print_formatted {
 }
 
 sub system_formatted {
-    my $arg = $_[0];
-
+    my $arg = @_;
     open (my $cmd, "-|", "$arg");
     while (<$cmd>) {
         print_formatted("$_");
@@ -406,13 +406,9 @@ sub get_os_info {
 
 # appends argument(s) to the end of /etc/motd
 sub add_motd {
-
-    my $etc_motd;
-    open ($etc_motd, ">>", '/etc/motd') or die print_formatted ("$!");
-
+    open (my $etc_motd, ">>", '/etc/motd') or die print_formatted ("$!");
     print $etc_motd "@_\n";
-
-    close ($etc_motd);
+    close $etc_motd;
 }
 
 sub spin {
