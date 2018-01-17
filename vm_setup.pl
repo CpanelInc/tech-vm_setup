@@ -64,7 +64,7 @@ if ($help) {
 print "\nadding resolvers ";
 unlink '/etc/resolv.conf';
 sysopen( my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY | O_CREAT )
-  or die print_formatted("$!");
+  or die $!;
 print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
 close($etc_resolv_conf);
 
@@ -118,7 +118,7 @@ print "\nsetting hostname to $hostname  ";
 
 # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
 sysopen( my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY | O_CREAT )
-  or die print_formatted("$!");
+  or die $!;
 print $cloud_cfg "#cloud-config\n" . "hostname: $hostname\n";
 close($cloud_cfg);
 
@@ -131,7 +131,7 @@ my $rndpass = &random_pass();
 print "\nupdating /etc/sysconfig/network  ";
 unlink '/etc/sysconfig/network';
 sysopen( my $etc_network, '/etc/sysconfig/network', O_WRONLY | O_CREAT )
-  or die print_formatted("$!");
+  or die $!;
 print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hostname\n";
 close($etc_network);
 
@@ -152,14 +152,14 @@ system_formatted("ip=`cat /etc/wwwacct.conf | grep 'ADDR ' | awk '{print \$2}'`;
 # create .whostmgrft
 print "\ncreating /etc/.whostmgrft  ";
 sysopen( my $etc_whostmgrft, '/etc/.whostmgrft', O_WRONLY | O_CREAT )
-  or die print_formatted("$!");
+  or die $!;
 close($etc_whostmgrft);
 
 # correct wwwacct.conf
 print "\ncorrecting /etc/wwwacct.conf  ";
 unlink '/etc/wwwacct.conf';
 sysopen( my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY | O_CREAT )
-  or die print_formatted("$!");
+  or die $!;
 print $etc_wwwacct_conf "HOST $hostname\n" . "ADDR $natip\n" . "HOMEDIR /home\n" . "ETHDEV eth0\n" . "NS ns1.os.cpanel.vm\n" . "NS2 ns2.os.cpanel.vm\n" . "NS3\n" . "NS4\n" . "HOMEMATCH home\n" . "NSTTL 86400\n" . "TTL 14400\n" . "DEFMOD paper_lantern\n" . "SCRIPTALIAS y\n" . "CONTACTPAGER\n" . "CONTACTEMAIL\n" . "LOGSTYLE combined\n" . "DEFWEBMAILTHEME paper_lantern\n";
 close($etc_wwwacct_conf);
 
@@ -167,7 +167,7 @@ close($etc_wwwacct_conf);
 print "\ncorrecting /etc/hosts  ";
 unlink '/etc/hosts';
 sysopen( my $etc_hosts, '/etc/hosts', O_WRONLY | O_CREAT )
-  or die print_formatted("$!");
+  or die $!;
 print $etc_hosts "127.0.0.1		localhost localhost.localdomain localhost4 localhost4.localdomain4\n" . "::1		localhost localhost.localdomain localhost6 localhost6.localdomain6\n" . "$ip		daily $hostname\n";
 close($etc_hosts);
 
@@ -216,7 +216,7 @@ if ( -e ("/root/.bash_profile") ) {
 
 # Append.
 my $roots_bashprofile;
-open( $roots_bashprofile, ">>", 'root/.bash_profile' ) or die print_formatted("$!");
+open( $roots_bashprofile, ">>", 'root/.bash_profile' ) or die $!;
 print $roots_bashprofile <<EOF;
 source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
 EOF
@@ -387,7 +387,7 @@ sub get_os_info {
 
 # appends argument(s) to the end of /etc/motd
 sub add_motd {
-    open( my $etc_motd, ">>", '/etc/motd' ) or die print_formatted("$!");
+    open( my $etc_motd, ">>", '/etc/motd' ) or die $!;
     print $etc_motd "@_\n";
     close $etc_motd;
 }
