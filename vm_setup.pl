@@ -7,7 +7,7 @@ use warnings;
 
 use Getopt::Long;
 use Fcntl;
-$| = 1;
+local $| = 1;
 
 my $VERSION = '0.6.1';
 
@@ -204,7 +204,7 @@ add_motd("one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /v
 
 # create api token
 print "\ncreating api token";
-$ENV{'REMOTE_USER'} = 'root';
+local $ENV{'REMOTE_USER'} = 'root';
 system_formatted ('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
 add_motd("Token name - all_access: " . $token . "\n");
 
@@ -237,6 +237,7 @@ if (-e("/root/.bash_profile")) {
    system_formatted ("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
 }
 # Append.
+my $roots_bashprofile;
 open($roots_bashprofile, ">>", 'root/.bash_profile') or die print_formatted ("$!");
 print $roots_bashprofile <<EOF;
 source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
@@ -273,7 +274,8 @@ print "\nupdating cpanel license  ";
 system_formatted ('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
-if ($OS_TYPE eq "cloudlinux" and !$force) { 
+if ($OS_TYPE eq "cloudlinux") { 
+    next if $force;
     print "\nCloudLinux already detected, no need to install CloudLinux.  "; 
 	# No need to install CloudLinux. It's already installed
 	$cltrue = 0;
