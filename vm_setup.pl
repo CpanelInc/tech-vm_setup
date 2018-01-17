@@ -26,18 +26,12 @@ GetOptions (
 	"installcl" => \$cltrue,
 );
 
-# add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
-print "\nadding resolvers ";
-unlink '/etc/resolv.conf';
-sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
-    die print_formatted ("$!");
-    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
-close ($etc_resolv_conf);
-
 # print header
 print "\nVM Server Setup Script\n" .
       "Version: $VERSION\n" .
       "\n";
+
+# help option should be processed first to ensure that nothing is erroneously executed if this option is passed
 if ($help) {
     print "Usage: perl vm_setup.pl [options]\n\n";
     print "Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. \n\n";
@@ -67,6 +61,15 @@ if ($help) {
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
     exit;
 }
+
+# add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
+print "\nadding resolvers ";
+unlink '/etc/resolv.conf';
+sysopen (my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY|O_CREAT) or
+    die print_formatted ("$!");
+    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
+close ($etc_resolv_conf);
+
 
 # generate unique hostnames from OS type, Version and cPanel Version info and time.
 my ($OS_RELEASE, $OS_TYPE,$OS_VERSION) = get_os_info();
