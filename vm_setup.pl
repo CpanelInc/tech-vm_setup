@@ -215,7 +215,7 @@ if ( -e ("/root/.bash_profile") ) {
 }
 
 # Append.
-open( my $roots_bashprofile, ">>", 'root/.bash_profile' ) or die $!;
+open( my $roots_bashprofile, ">>", '/root/.bash_profile' ) or die $!;
 print $roots_bashprofile <<EOF;
 source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
 EOF
