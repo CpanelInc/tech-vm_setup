@@ -39,6 +39,11 @@ if ($help) {
     print_help_and_exit();
 }
 
+# we should check for the lock file and exit if force argument not passed right after checking for help 
+# to ensure that no work is performed in this scenario 
+# also converting this to a function to avoid performing tasks in main
+handle_lock_file();
+
 # add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
 print "\nadding resolvers ";
 unlink '/etc/resolv.conf';
@@ -65,16 +70,6 @@ my $hostname = $Flavor . $versionstripped . "-" . $cpVersion . "-" . $time . ".c
 
 ### and go
 
-if ( -e "/root/vmsetup.lock" ) {
-    if ( !$force ) {
-        print "/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...\n";
-        exit;
-    }
-    else {
-        print "/root/vmsetup.lock exists. --force passed. Ignoring...\n";
-    }
-}
-
 if ($full) {
     print "--full passed. Passing y to all optional setup options.\n\n";
     chomp( $answer = "y" );
@@ -83,10 +78,6 @@ if ($fast) {
     print "--fast passed. Skipping all optional setup options.\n\n";
     chomp( $answer = "n" );
 }
-
-# create lock file
-print "\ncreating lock file ";
-system_formatted("touch /root/vmsetup.lock");
 
 # check for and install prereqs
 print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
@@ -423,4 +414,28 @@ sub print_help_and_exit {
     print "- Runs check_cpanel_rpms --fix (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
     exit;
+}
+
+sub handle_lock_file {
+    if ( -e "/root/vmsetup.lock" ) {
+        if ( !$force ) {
+            print "/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...\n";
+            exit;
+        }
+        else {
+            print "/root/vmsetup.lock exists. --force passed. Ignoring...\n";
+        }
+    }
+    else {
+        # create lock file
+        print "\ncreating lock file ";
+        _create_touch_file('/root/vmsetup.lock');
+    }
+    return 1;
+}
+
+sub _create_touch_file {
+    open( my $touch_file, ">>", "$_[0]" ) or die $!;
+    close $touch_file;
+    return 1;
 }
