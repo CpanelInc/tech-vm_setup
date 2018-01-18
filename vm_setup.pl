@@ -313,6 +313,7 @@ sub print_formatted {
     else {
         &spin;
     }
+    return 1;
 }
 
 sub system_formatted {
@@ -321,6 +322,8 @@ sub system_formatted {
         print_formatted("$_");
     }
     close $cmd;
+
+    return 1;
 }
 
 sub random_pass {
@@ -389,12 +392,16 @@ sub add_motd {
     open( my $etc_motd, ">>", '/etc/motd' ) or die $!;
     print $etc_motd "@_\n";
     close $etc_motd;
+
+    return 1;
 }
 
 sub spin {
     my %spinner = ( '|' => '/', '/' => '-', '-' => '\\', '\\' => '|' );
     $spincounter = ( !defined $spincounter ) ? '|' : $spinner{$spincounter};
     print STDERR "\b$spincounter";
+
+    return 1;
 }
 
 sub _stdin {
