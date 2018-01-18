@@ -24,7 +24,7 @@ GetOptions(
 );
 
 # declare global variables for script
-my ( $ip, $natip, $answer, $token );
+my ( $ip, $natip, $token );
 our $spincounter;
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
@@ -43,6 +43,11 @@ if ($help) {
 # to ensure that no work is performed in this scenario
 # also converting this to a function to avoid performing tasks in main
 handle_lock_file();
+
+# proces full and fast arguments
+# full = y
+# otherwise, we return n
+my $answer = full_or_fast();
 
 # add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
 print "\nadding resolvers ";
@@ -67,17 +72,6 @@ chomp($cpVersion);
 $cpVersion =~ s/\./-/g;
 $cpVersion = substr( $cpVersion, 3 );
 my $hostname = $Flavor . $versionstripped . "-" . $cpVersion . "-" . $time . ".cpanel.vm";
-
-### and go
-
-if ($full) {
-    print "--full passed. Passing y to all optional setup options.\n\n";
-    chomp( $answer = "y" );
-}
-if ($fast) {
-    print "--fast passed. Skipping all optional setup options.\n\n";
-    chomp( $answer = "n" );
-}
 
 # check for and install prereqs
 print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
@@ -438,4 +432,16 @@ sub _create_touch_file {
     open( my $touch_file, ">>", "$_[0]" ) or die $!;
     close $touch_file;
     return 1;
+}
+
+# process full and fast script args
+# return y or n
+sub full_or_fast {
+    if ($full) {
+        print "--full passed. Passing y to all optional setup options.\n\n";
+        return "y";
+    }
+    else {
+        return "n";
+    }
 }
