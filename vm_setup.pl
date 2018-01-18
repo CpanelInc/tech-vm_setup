@@ -39,8 +39,8 @@ if ($help) {
     print_help_and_exit();
 }
 
-# we should check for the lock file and exit if force argument not passed right after checking for help 
-# to ensure that no work is performed in this scenario 
+# we should check for the lock file and exit if force argument not passed right after checking for help
+# to ensure that no work is performed in this scenario
 # also converting this to a function to avoid performing tasks in main
 handle_lock_file();
 
