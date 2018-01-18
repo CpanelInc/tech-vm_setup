@@ -33,34 +33,10 @@ my $InstCageFS      = 0;
 print "\nVM Server Setup Script\n" . "Version: $VERSION\n" . "\n";
 
 # help option should be processed first to ensure that nothing is erroneously executed if this option is passed
+# converted this to a function to make main less clunky and it may be of use if we add more script arguments in the future
+#  ex:  or die print_help_and_exit();
 if ($help) {
-    print "Usage: perl vm_setup.pl [options]\n\n";
-    print "Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. \n\n";
-    print "Options: \n";
-    print "-------------- \n";
-    print "--force: Ignores previous run check\n";
-    print "--fast: Skips all optional setup functions\n";
-    print "--verbose: pretty self explanatory\n";
-    print "--full: Passes yes to all optional setup functions\n";
-    print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
-    print "Full list of things this does: \n";
-    print "-------------- \n";
-    print "- Installs common/useful packages\n";
-    print "- Sets hostname\n";
-    print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
-    print "- Performs basic setup wizard\n";
-    print "- Fixes /etc/hosts\n";
-    print "- Fixes screen permissions\n";
-    print "- Runs cpkeyclt\n";
-    print "- Creates test account (with email and database)\n";
-    print "- Disables cphulkd\n";
-    print "- Creates api key\n";
-    print "- Updates motd\n";
-    print "- Creates /root/.bash_profile with helpful aliases\n";
-    print "- Runs upcp (optional)\n";
-    print "- Runs check_cpanel_rpms --fix (optional)\n";
-    print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
-    exit;
+    print_help_and_exit();
 }
 
 # add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
@@ -417,4 +393,34 @@ sub _stdin {
     }
     chomp $string;
     return $string;
+}
+
+sub print_help_and_exit {
+    print "Usage: perl vm_setup.pl [options]\n\n";
+    print "Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. \n\n";
+    print "Options: \n";
+    print "-------------- \n";
+    print "--force: Ignores previous run check\n";
+    print "--fast: Skips all optional setup functions\n";
+    print "--verbose: pretty self explanatory\n";
+    print "--full: Passes yes to all optional setup functions\n";
+    print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
+    print "Full list of things this does: \n";
+    print "-------------- \n";
+    print "- Installs common/useful packages\n";
+    print "- Sets hostname\n";
+    print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
+    print "- Performs basic setup wizard\n";
+    print "- Fixes /etc/hosts\n";
+    print "- Fixes screen permissions\n";
+    print "- Runs cpkeyclt\n";
+    print "- Creates test account (with email and database)\n";
+    print "- Disables cphulkd\n";
+    print "- Creates api key\n";
+    print "- Updates motd\n";
+    print "- Creates /root/.bash_profile with helpful aliases\n";
+    print "- Runs upcp (optional)\n";
+    print "- Runs check_cpanel_rpms --fix (optional)\n";
+    print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
+    exit;
 }
