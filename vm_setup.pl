@@ -7,6 +7,7 @@ use warnings;
 
 use Getopt::Long;
 use Fcntl;
+use IO::Handle;
 local $| = 1;
 
 my $VERSION = '0.6.1';
