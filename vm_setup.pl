@@ -4,20 +4,16 @@
 
 use strict;
 use warnings;
-
 use Getopt::Long;
 use Fcntl;
 use IO::Handle;
+
 local $| = 1;
 
 my $VERSION = '0.6.1';
 
-# get opts
-my ( $ip, $natip, $help, $fast, $full, $force, $cltrue, $answer, $verbose, $token );
-our $spincounter;
-my $InstPHPSelector = 0;
-my $InstCageFS      = 0;
-
+# declare variables for script options and hanle them
+my ( $help, $verbose, $full, $fast, $force, $cltrue );
 GetOptions(
     "help"      => \$help,
     "verbose"   => \$verbose,
@@ -26,6 +22,12 @@ GetOptions(
     "force"     => \$force,
     "installcl" => \$cltrue,
 );
+
+# declare global variables for script
+my ( $ip, $natip, $answer, $token );
+our $spincounter;
+my $InstPHPSelector = 0;
+my $InstCageFS      = 0;
 
 # print header
 print "\nVM Server Setup Script\n" . "Version: $VERSION\n" . "\n";
