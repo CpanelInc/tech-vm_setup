@@ -262,8 +262,7 @@ exit;
 
 ### subs
 sub print_formatted {
-    my $lines = @_;
-    my @input = split /\n/, $lines;
+    my @input = split /\n/, $_;
     foreach (@input) {
         if ( $_ =~ /token:/ ) {
             ( my $key, $token ) = split /:/, $_;
