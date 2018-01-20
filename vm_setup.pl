@@ -49,13 +49,11 @@ handle_lock_file();
 # otherwise, we return n
 my $answer = full_or_fast();
 
-# add resolvers - although we shouldn't be using Google's DNS (or any public resolvers)
-print "\nadding resolvers ";
-unlink '/etc/resolv.conf';
-sysopen( my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY | O_CREAT )
-  or die $!;
-print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
-close($etc_resolv_conf);
+setup_resolv_conf();
+
+# check for and install prereqs
+print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
+system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 
 # generate unique hostnames from OS type, Version and cPanel Version info and time.
 my ( $OS_RELEASE, $OS_TYPE, $OS_VERSION ) = get_os_info();
@@ -72,10 +70,6 @@ chomp($cpVersion);
 $cpVersion =~ s/\./-/g;
 $cpVersion = substr( $cpVersion, 3 );
 my $hostname = $Flavor . $versionstripped . "-" . $cpVersion . "-" . $time . ".cpanel.vm";
-
-# check for and install prereqs
-print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
-system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 
 # set hostname
 print "\nsetting hostname to $hostname  ";
@@ -443,4 +437,15 @@ sub full_or_fast {
     else {
         return "n";
     }
+}
+
+# recreate resolv.conf using cPanel resolvers
+sub setup_resolv_conf {
+    print "\nadding resolvers ";
+    unlink '/etc/resolv.conf';
+    sysopen( my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY | O_CREAT )
+      or die $!;
+    print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
+    close($etc_resolv_conf);
+    return 1;
 }
