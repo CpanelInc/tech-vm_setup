@@ -51,13 +51,7 @@ my $answer = full_or_fast();
 
 setup_resolv_conf();
 
-# ensure rpm database is not corrupted before running yum
-print "\nchecking for rpmdb issues";
-system_formatted("/usr/local/cpanel/scripts/find_and_fix_rpm_issues");
-
-# check for and install prereqs
-print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
-system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
+install_yum_packages();
 
 # simplified hostname logic and removed time from hostname
 # hostname is in the format of 'os.cptier.tld'
@@ -448,4 +442,14 @@ sub determine_hostname {
 
     # concatanate it all together
     return $dist . $ver . '.' . $tier . ".tld";
+}
+
+sub install_yum_packages {
+    # ensure rpm database is not corrupted before running yum
+    print "\nchecking for rpmdb issues";
+    system_formatted("/usr/local/cpanel/scripts/find_and_fix_rpm_issues");
+
+    # check for and install prereqs
+    print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
+    system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 }
