@@ -61,16 +61,9 @@ my $hostname = determine_hostname();
 # set hostname
 print "\nsetting hostname to $hostname  ";
 
-# Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
-sysopen( my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY | O_CREAT )
-  or die $!;
-print $cloud_cfg "#cloud-config\n" . "hostname: $hostname\n";
-close($cloud_cfg);
+configure_99_hostname_cfg($hostname);
 
 system_formatted("/usr/local/cpanel/bin/set_hostname $hostname");
-
-# generate random password
-my $rndpass = &random_pass();
 
 # set /etc/sysconfig/network
 print "\nupdating /etc/sysconfig/network  ";
@@ -119,6 +112,9 @@ close($etc_hosts);
 # fix screen perms
 print "\nfixing screen perms  ";
 system_formatted('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
+
+# generate random password
+my $rndpass = &random_pass();
 
 add_motd("VM Setup Script created the following test accounts:\n");
 add_motd( "one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
@@ -453,5 +449,16 @@ sub install_yum_packages {
     # check for and install prereqs
     print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
     system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
+    return 1;
+}
+
+# takes a hostname as an argument
+sub configure_99_hostname_cfg {
+
+    # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
+    sysopen( my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY | O_CREAT )
+      or die $!;
+    print $cloud_cfg "#cloud-config\n" . "hostname: $_\n";
+    close($cloud_cfg);
     return 1;
 }
