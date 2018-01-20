@@ -62,7 +62,7 @@ system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwho
 # simplified hostname logic and removed time from hostname
 # hostname is in the format of 'os.cptier.tld'
 my $hostname = determine_hostname();
-(my $os, my $tier, my $tld) = split /./, $hostname;
+( my $os, my $tier, my $tld ) = split /./, $hostname;
 
 # set hostname
 print "\nsetting hostname to $hostname  ";
@@ -418,16 +418,16 @@ sub determine_hostname {
     unlink '/var/cpanel/sysinfo.config';
     system_formatted("/usr/local/cpanel/scripts/gensysinfo");
 
-    my ($key, $dist, $ver);
+    my ( $key, $dist, $ver );
     sysopen( my $fh, '/var/cpanel/sysinfo.config', O_RDONLY )
       or die $!;
-    while(<$fh>) {
+    while (<$fh>) {
         chomp($_);
-        if( $_ =~ /^rpm_dist_ver/ ) {
-            ($key, $ver) = split /=/, $_;
+        if ( $_ =~ /^rpm_dist_ver/ ) {
+            ( $key, $ver ) = split /=/, $_;
         }
-        elsif( $_ =~ /^rpm_dist/ ) {
-            ($key, $dist) = split /=/, $_;
+        elsif ( $_ =~ /^rpm_dist/ ) {
+            ( $key, $dist ) = split /=/, $_;
         }
     }
     close $fh;
@@ -435,10 +435,10 @@ sub determine_hostname {
     my $tier;
     sysopen( $fh, '/etc/cpupdate.conf', O_RDONLY )
       or die $!;
-    while(<$fh>) {
+    while (<$fh>) {
         chomp($_);
-        if( $_ =~ /^CPANEL/ ) {
-            ($key, $tier) = split /=/, $_;
+        if ( $_ =~ /^CPANEL/ ) {
+            ( $key, $tier ) = split /=/, $_;
         }
     }
     close $fh;
