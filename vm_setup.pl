@@ -65,13 +65,7 @@ configure_99_hostname_cfg($hostname);
 
 system_formatted("/usr/local/cpanel/bin/set_hostname $hostname");
 
-# set /etc/sysconfig/network
-print "\nupdating /etc/sysconfig/network  ";
-unlink '/etc/sysconfig/network';
-sysopen( my $etc_network, '/etc/sysconfig/network', O_WRONLY | O_CREAT )
-  or die $!;
-print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hostname\n";
-close($etc_network);
+configure_sysconfig_network($hostname);
 
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
@@ -460,5 +454,18 @@ sub configure_99_hostname_cfg {
       or die $!;
     print $cloud_cfg "#cloud-config\n" . "hostname: $_\n";
     close($cloud_cfg);
+    return 1;
+}
+
+# takes a hostname as an argument
+sub configure_sysconfig_network {
+
+    # set /etc/sysconfig/network
+    print "\nupdating /etc/sysconfig/network  ";
+    unlink '/etc/sysconfig/network';
+    sysopen( my $etc_network, '/etc/sysconfig/network', O_WRONLY | O_CREAT )
+      or die $!;
+    print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$_\n";
+    close($etc_network);
     return 1;
 }
