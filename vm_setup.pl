@@ -52,27 +52,17 @@ my $answer = full_or_fast();
 setup_resolv_conf();
 
 # ensure rpm database is not corrupted before running yum
+print "\nchecking for rpmdb issues";
 system_formatted("/usr/local/cpanel/scripts/find_and_fix_rpm_issues");
 
 # check for and install prereqs
 print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
 system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
 
-# generate unique hostnames from OS type, Version and cPanel Version info and time.
-my ( $OS_RELEASE, $OS_TYPE, $OS_VERSION ) = get_os_info();
-my $time   = time;
-my %ostype = (
-    "centos"     => "c",
-    "cloudlinux" => "cl",
-);
-my $Flavor          = $ostype{$OS_TYPE};
-my $versionstripped = $OS_VERSION;
-$versionstripped =~ s/\.//g;
-my $cpVersion = qx[ cat /usr/local/cpanel/version ];
-chomp($cpVersion);
-$cpVersion =~ s/\./-/g;
-$cpVersion = substr( $cpVersion, 3 );
-my $hostname = $Flavor . $versionstripped . "-" . $cpVersion . "-" . $time . ".cpanel.vm";
+# simplified hostname logic and removed time from hostname
+# hostname is in the format of 'os.cptier.tld'
+my $hostname = determine_hostname();
+(my $os, my $tier, my $tld) = split /./, $hostname;
 
 # set hostname
 print "\nsetting hostname to $hostname  ";
@@ -212,7 +202,9 @@ print "\nupdating cpanel license  ";
 system_formatted('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
-if ( $OS_TYPE eq "cloudlinux" ) {
+
+# this check should be reconsidered due to hostname determination logic refactoring
+if ( $os eq "cloudlinux" ) {
     next if $force;
     print "\nCloudLinux already detected, no need to install CloudLinux.  ";
 
@@ -312,38 +304,6 @@ sub random_pass {
         }
     }
     return $password;
-}
-
-sub get_os_info {
-    my $ises = 0;
-    my $version;
-    my $os      = "UNKNOWN";
-    my $release = "UNKNOWN";
-    my $os_release_file;
-    foreach my $test_release_file ( 'CentOS-release', 'redhat-release', 'system-release' ) {
-        if ( -e '/etc/' . $test_release_file ) {
-            if ( ( ($os) = $test_release_file =~ m/^([^\-_]+)/ )[0] ) {
-                $os              = lc $os;
-                $os_release_file = '/etc/' . $test_release_file;
-                if ( $os eq 'system' ) {
-                    $os = 'amazon';
-                }
-                last;
-            }
-        }
-    }
-    if ( open my $fh, '<', $os_release_file ) {
-        my $line = readline $fh;
-        close $fh;
-        chomp $line;
-        if    ( length $line >= 4 )                                             { $release = $line; }
-        if    ( $line =~ m/(?:Corporate|Advanced\sServer|Enterprise|Amazon)/i ) { $ises    = 1; }
-        elsif ( $line =~ /CloudLinux|CentOS/i )                                 { $ises    = 2; }
-        if    ( $line =~ /(\d+\.\d+)/ )                                         { $version = $1; }
-        elsif ( $line =~ /(\d+)/ )                                              { $version = $1; }
-        if    ( $line =~ /(centos|cloudlinux|amazon)/i )                        { $os      = lc $1; }
-    }
-    return ( $release, $os, $version, $ises );
 }
 
 # appends argument(s) to the end of /etc/motd
@@ -451,4 +411,41 @@ sub setup_resolv_conf {
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
     close($etc_resolv_conf);
     return 1;
+}
+
+# returns a fqdn hostname based on os version and cPanel tier
+sub determine_hostname {
+    unlink '/var/cpanel/sysinfo.config';
+    system_formatted("/usr/local/cpanel/scripts/gensysinfo");
+
+    my ($key, $dist, $ver);
+    sysopen( my $fh, '/var/cpanel/sysinfo.config', O_RDONLY )
+      or die $!;
+    while(<$fh>) {
+        chomp($_);
+        if( $_ =~ /^rpm_dist_ver/ ) {
+            ($key, $ver) = split /=/, $_;
+        }
+        elsif( $_ =~ /^rpm_dist/ ) {
+            ($key, $dist) = split /=/, $_;
+        }
+    }
+    close $fh;
+
+    my $tier;
+    sysopen( $fh, '/etc/cpupdate.conf', O_RDONLY )
+      or die $!;
+    while(<$fh>) {
+        chomp($_);
+        if( $_ =~ /^CPANEL/ ) {
+            ($key, $tier) = split /=/, $_;
+        }
+    }
+    close $fh;
+
+    # replace . with - for hostname purposes
+    $tier =~ s/\./-/g;
+
+    # concatanate it all together
+    return $dist . $ver . '.' . $tier . ".tld";
 }
