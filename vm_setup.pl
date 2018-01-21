@@ -52,6 +52,7 @@ my $answer = full_or_fast();
 setup_resolv_conf();
 
 install_yum_packages();
+set_screen_perms();
 
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
@@ -91,10 +92,6 @@ configure_wwwacct_conf( $hostname, $natip );
 configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
 configure_etc_hosts( $hostname, $ip );
-
-# fix screen perms
-print "\nfixing screen perms  ";
-system_formatted('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
 
 # generate random password
 my $rndpass = &random_pass();
@@ -622,5 +619,13 @@ sub configure_etc_hosts {
     print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
     print $fh "$local_ip    host $hostname\n";
     close($fh);
+    return 1;
+}
+
+# ensure proper screen ownership/permissions
+sub set_screen_perms {
+
+    print "\nfixing screen perms  ";
+    system_formatted('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
     return 1;
 }
