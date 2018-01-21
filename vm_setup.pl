@@ -24,7 +24,8 @@ GetOptions(
 );
 
 # declare global variables for script
-my ( $ip, $natip, $token );
+my $ip;
+my $token;
 our $spincounter;
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
@@ -73,6 +74,7 @@ my %sysinfo = (
 get_sysinfo( \%sysinfo );
 
 my $hostname = $sysinfo{'hostname'};
+my $natip    = $sysinfo{'natip'};
 
 # set hostname
 print "\nsetting hostname to $hostname";
@@ -85,9 +87,7 @@ system_formatted("/usr/sbin/whmapi1 sethostname hostname=$hostname");
 # edit files with the new hostname
 configure_99_hostname_cfg($hostname);
 configure_sysconfig_network($hostname);
-
-# fix /var/cpanel/mainip file because for some reason it has an old value in it
-system_formatted("ip=`cat /etc/wwwacct.conf | grep 'ADDR ' | awk '{print \$2}'`; echo -n \$ip > /var/cpanel/mainip");
+configure_mainip($natip);
 
 # create .whostmgrft
 # this allows us to skip the initial setup upon logging into WHM
@@ -568,5 +568,19 @@ sub configure_sysconfig_network {
       or die $!;
     print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hn\n";
     close($etc_network);
+    return 1;
+}
+
+# takes the systems natip as an argument
+sub configure_mainip {
+
+    my $nat = shift;
+
+    print "\nupdating /var/cpanel/mainip  ";
+    unlink '/var/cpanel/mainip';
+    sysopen( my $fh, '/var/cpanel/mainip', O_WRONLY | O_CREAT )
+      or die $!;
+    print $fh "$nat";
+    close($fh);
     return 1;
 }
