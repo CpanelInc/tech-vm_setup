@@ -93,17 +93,18 @@ configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
 configure_etc_hosts( $hostname, $ip );
 
+# set env variable
+# I am not entirely sure what we need this for or if it is even needed
+# leaving for now but will need to be reevaluated in later on
+local $ENV{'REMOTE_USER'} = 'root';
+
+create_api_token();
+
 # generate random password
 my $rndpass = &random_pass();
 
 add_motd("VM Setup Script created the following test accounts:\n");
 add_motd( "one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
-
-# create api token
-print "\ncreating api token";
-local $ENV{'REMOTE_USER'} = 'root';
-system_formatted('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
-add_motd( "Token name - all_access: " . $token . "\n" );
 
 # create test account
 print "\ncreating test account - cptest  ";
@@ -501,6 +502,7 @@ sub _get_ostype_and_version {
 # we need a function to process the output from system_formatted in order to catch and throw exceptions
 # in particular, the 'gensysinfo' will throw an exception that needs to be caught if the rpmdb is broken
 sub _cpanel_gensysinfo {
+    ensure_working_rpmdb();
     unlink '/var/cpanel/sysinfo.config';
     _create_touch_file('/var/cpanel/sysinfo.config');
     system_formatted("/usr/local/cpanel/scripts/gensysinfo");
@@ -522,6 +524,9 @@ sub install_packages {
     # and thus prevent us from borking the rpmdb
     print "\ninstalling perl module CDB_File  ";
     system_formatted('/usr/local/cpanel/bin/cpanm --force CDB_File');
+
+    # additional time for yum to complete
+    sleep 60;
 
     return 1;
 }
@@ -638,5 +643,19 @@ sub set_screen_perms {
 
 sub ensure_working_rpmdb {
     system_formatted('/usr/local/cpanel/scripts/find_and_fix_rpm_issues');
+    return 1;
+}
+
+# this creates an api token and adds it to '/etc/motd'
+# eventually, I would like to move $token to be local to this function
+# however, this needs to wait on system_formatted to call a process_output function
+# system_formatted will also need be modified to access / return variables for this to happen
+# this is on the roadmap but is not within the scope of epic TECH-411
+sub create_api_token {
+
+    print "\ncreating api token";
+    system_formatted('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
+    add_motd( "Token name - all_access: " . $token . "\n" );
+
     return 1;
 }
