@@ -87,16 +87,9 @@ system_formatted("/usr/sbin/whmapi1 sethostname hostname=$hostname");
 # edit files with the new hostname
 configure_99_hostname_cfg($hostname);
 configure_sysconfig_network($hostname);
+configure_wwwacct_conf( $hostname, $natip );
 configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
-
-# correct wwwacct.conf
-print "\ncorrecting /etc/wwwacct.conf  ";
-unlink '/etc/wwwacct.conf';
-sysopen( my $etc_wwwacct_conf, '/etc/wwwacct.conf', O_WRONLY | O_CREAT )
-  or die $!;
-print $etc_wwwacct_conf "HOST $hostname\n" . "ADDR $natip\n" . "HOMEDIR /home\n" . "ETHDEV eth0\n" . "NS ns1.os.cpanel.vm\n" . "NS2 ns2.os.cpanel.vm\n" . "NS3\n" . "NS4\n" . "HOMEMATCH home\n" . "NSTTL 86400\n" . "TTL 14400\n" . "DEFMOD paper_lantern\n" . "SCRIPTALIAS y\n" . "CONTACTPAGER\n" . "CONTACTEMAIL\n" . "LOGSTYLE combined\n" . "DEFWEBMAILTHEME paper_lantern\n";
-close($etc_wwwacct_conf);
 
 # correct /etc/hosts
 print "\ncorrecting /etc/hosts  ";
@@ -582,5 +575,39 @@ sub configure_mainip {
 # touches '/etc/.whostmgrft'
 sub configure_whostmgrft {
     _create_touch_file('/etc/.whostmgrft');
+    return 1;
+}
+
+# takes two arguments
+# arg1 = hostname
+# arg2 = natip
+sub configure_wwwacct_conf {
+
+    my $hn  = shift;
+    my $nat = shift;
+
+    # correct wwwacct.conf
+    print "\ncorrecting /etc/wwwacct.conf  ";
+    unlink '/etc/wwwacct.conf';
+    sysopen( my $fh, '/etc/wwwacct.conf', O_WRONLY | O_CREAT )
+      or die $!;
+    print $fh "HOST $hn\n";
+    print $fh "ADDR $nat\n";
+    print $fh "HOMEDIR /home\n";
+    print $fh "ETHDEV eth0\n";
+    print $fh "NS ns1.os.cpanel.vm\n";
+    print $fh "NS2 ns2.os.cpanel.vm\n";
+    print $fh "NS3\n";
+    print $fh "NS4\n";
+    print $fh "HOMEMATCH home\n";
+    print $fh "NSTTL 86400\n";
+    print $fh "TTL 14400\n";
+    print $fh "DEFMOD paper_lantern\n";
+    print $fh "SCRIPTALIAS y\n";
+    print $fh "CONTACTPAGER\n";
+    print $fh "CONTACTEMAIL\n";
+    print $fh "LOGSTYLE combined\n";
+    print $fh "DEFWEBMAILTHEME paper_lantern\n";
+    close($fh);
     return 1;
 }
