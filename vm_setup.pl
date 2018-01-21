@@ -7,6 +7,9 @@ use warnings;
 use Getopt::Long;
 use Fcntl;
 use IO::Handle;
+use IO::Select;
+use String::Random;
+use IPC::Open3;
 
 local $| = 1;
 
@@ -99,29 +102,9 @@ configure_etc_hosts( $hostname, $ip );
 local $ENV{'REMOTE_USER'} = 'root';
 
 create_api_token();
+create_primary_account();
 
-# generate random password
-my $rndpass = &random_pass();
-
-add_motd("VM Setup Script created the following test accounts:\n");
-add_motd( "one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
-
-# create test account
-print "\ncreating test account - cptest  ";
-system_formatted( "/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" );
-add_motd( "one-liner for access to cPanel user: cptest\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n" );
-
-print "\ncreating test email - testing\@cptest.tld  ";
-system_formatted( "/usr/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass );
-add_motd( "one-liner for access to test email account: testing\@cptest.tld\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n" );
-
-print "\ncreating test database - cptest_testdb  ";
-system_formatted("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
-print "\ncreating test db user - cptest_testuser  ";
-system_formatted( "/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass );
-print "\nadding all privs for cptest_testuser to cptest_testdb  ";
-system_formatted("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
-
+# updating tweak settings
 print "\nUpdating tweak settings (cpanel.config)  ";
 system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
 system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
@@ -235,6 +218,7 @@ sub print_formatted {
     return 1;
 }
 
+# look at logic in install_packages and consider refactoring this function in a future version
 sub system_formatted {
     open( my $cmd, "-|", "$_[0]" ) or die $!;
     while (<$cmd>) {
@@ -245,33 +229,12 @@ sub system_formatted {
     return 1;
 }
 
-sub random_pass {
-    my $password_length = 25;
-    my $password;
-    my $_rand;
-    my @chars = split(
-        " ", "
-      a b c d e f g h j k l m 
-      n o p q r s t u v w x y 
-      z 1 2 3 4 5 6 7 8 9 Z Y 
-      X W V U T S R Q P N M L 
-      K J H G F E D C B A "
-    );
-    my $pwgen_installed = qx[ yum list installed | grep 'pwgen' ];
-    if ($pwgen_installed) {
-        print "\npwgen installed successfully, using it to generate random password\n";
-        $password = qx[ pwgen -Bs 25 1 ];
-    }
-    else {
-        print "pwgen didn't install successfully, using internal function to generate random password\n";
-        srand;
-        my $key = @chars;
-        for ( my $i = 1; $i <= $password_length; $i++ ) {
-            $_rand = int( rand $key );
-            $password .= $chars[$_rand];
-        }
-    }
-    return $password;
+# use String::Random to generate 25 digit password
+# return the pw
+sub _genpw {
+
+    my $gen = String::Random->new();
+    return $gen->randpattern(".........................");
 }
 
 # appends argument(s) to the end of /etc/motd
@@ -509,24 +472,52 @@ sub _cpanel_gensysinfo {
     return 1;
 }
 
-# we need a function to process the output from system_formatted in order to catch and throw exceptions
-# in particular, the 'gensysinfo' will throw an exception that needs to be caught if the rpmdb is broken
+# refactored this logic to use open3 instead of the logic in system_formatted() due to ongoing issues
+# with rpmdb getting corrupted due to yum not completeling before we move on from this
+#
+# the logic used here will likely be used to replace the logic used in system_formatted() in a future version
+# but that is beyond the scope of TECH-411
 sub install_packages {
+
+    # perhaps something like this will work here:  http://www.perlmonks.org/?node_id=957403
 
     # check for and install prereqs
     # added perl-CDB_FILE to be installed through yum instead of cpanm
-    print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf ]  ";
+    print "\ninstalling utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ]  ";
     ensure_working_rpmdb();
-    system_formatted("yum -y install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf");
 
-    # install CDB_File perm module via cpanm
-    # this should produce a gap to allow yum to finish running
-    # and thus prevent us from borking the rpmdb
-    print "\ninstalling perl module CDB_File  ";
-    system_formatted('/usr/local/cpanel/bin/cpanm --force CDB_File');
+    my ( $w_fh, $r_fh, $pid );
+    my $modules = q[ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ];
+    eval { $pid = open3( $w_fh, $r_fh, '>&STDERR', '/usr/bin/yum', '-y', $modules ); };
+    die "open3: $@\n" if $@;
 
-    # additional time for yum to complete
-    sleep 60;
+    if ($verbose) {
+        my $sel = IO::Select->new();    # notify us of reads on on our FHs
+        $sel->add($r_fh);               # add the FH we are interested in
+        while ( my @ready = $sel->can_read ) {
+            foreach my $fh (@ready) {
+                my $line = <$fh>;
+                if ( not defined $line ) {    # EOF for FH
+                    $sel->remove($fh);
+                    next;
+                }
+
+                print $line;
+            }
+        }
+    }
+    else {
+        # wait on child to finish before proceeding
+        # we could optimize this, but that is outside the scope of TECH-411
+        waitpid( $pid, 0 );
+        my $exit_status = $? >> 8;
+
+        # if yum completes successfully, it will return 0
+        # otherwise, it returns 1
+        if ( $exit_status && $exit_status != 0 ) {
+            print("\n\nWARN:  yum may have failed to install some modules\n\n");
+        }
+    }
 
     return 1;
 }
@@ -656,6 +647,41 @@ sub create_api_token {
     print "\ncreating api token";
     system_formatted('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
     add_motd( "Token name - all_access: " . $token . "\n" );
+
+    return 1;
+}
+
+# create the primary test account
+# and add one-liners to motd for access
+sub create_primary_account {
+
+    my $rndpass;
+
+    add_motd("VM Setup Script created the following test accounts:\n");
+    add_motd( "one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
+
+    # create test account
+    print "\ncreating test account - cptest  ";
+    $rndpass = _genpw();
+    system_formatted( "/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" );
+    add_motd( "one-liner for access to cPanel user: cptest\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n" );
+
+    print "\ncreating test email - testing\@cptest.tld  ";
+    $rndpass = _genpw();
+    system_formatted( "/usr/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass );
+    add_motd( "one-liner for access to test email account: testing\@cptest.tld\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n" );
+
+    print "\ncreating test database - cptest_testdb  ";
+    system_formatted("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
+
+    print "\ncreating test db user - cptest_testuser  ";
+    $rndpass = _genpw();
+    system_formatted( "/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass );
+    add_motd("mysql test user:  username:  cptest_testuser\n");
+    add_motd("                  password:  $rndpass\n");
+
+    print "\nadding all privs for cptest_testuser to cptest_testdb  ";
+    system_formatted("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
     return 1;
 }
