@@ -88,13 +88,7 @@ system_formatted("/usr/sbin/whmapi1 sethostname hostname=$hostname");
 configure_99_hostname_cfg($hostname);
 configure_sysconfig_network($hostname);
 configure_mainip($natip);
-
-# create .whostmgrft
-# this allows us to skip the initial setup upon logging into WHM
-print "\ncreating /etc/.whostmgrft  ";
-sysopen( my $etc_whostmgrft, '/etc/.whostmgrft', O_WRONLY | O_CREAT )
-  or die $!;
-close($etc_whostmgrft);
+configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
 
 # correct wwwacct.conf
 print "\ncorrecting /etc/wwwacct.conf  ";
@@ -582,5 +576,11 @@ sub configure_mainip {
       or die $!;
     print $fh "$nat";
     close($fh);
+    return 1;
+}
+
+# touches '/etc/.whostmgrft'
+sub configure_whostmgrft {
+    _create_touch_file('/etc/.whostmgrft');
     return 1;
 }
