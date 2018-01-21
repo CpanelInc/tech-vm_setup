@@ -51,7 +51,7 @@ my $answer = full_or_fast();
 
 setup_resolv_conf();
 
-install_yum_packages();
+install_packages();
 set_screen_perms();
 
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
@@ -104,9 +104,6 @@ print "\ncreating api token";
 local $ENV{'REMOTE_USER'} = 'root';
 system_formatted('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
 add_motd( "Token name - all_access: " . $token . "\n" );
-
-print "\nInstalling CDB_file.pm Perl Module  ";
-system_formatted('/usr/local/cpanel/bin/cpanm --force CDB_File');
 
 # create test account
 print "\ncreating test account - cptest  ";
@@ -512,11 +509,20 @@ sub _cpanel_gensysinfo {
 
 # we need a function to process the output from system_formatted in order to catch and throw exceptions
 # in particular, the 'gensysinfo' will throw an exception that needs to be caught if the rpmdb is broken
-sub install_yum_packages {
+sub install_packages {
 
     # check for and install prereqs
-    print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
-    system_formatted("yum install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf -y");
+    # added perl-CDB_FILE to be installed through yum instead of cpanm
+    print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf ]  ";
+    ensure_working_rpmdb();
+    system_formatted("yum -y install mtr nmap telnet nc s3cmd vim bind-utils pwgen jwhois dev git pydf");
+
+    # install CDB_File perm module via cpanm
+    # this should produce a gap to allow yum to finish running
+    # and thus prevent us from borking the rpmdb
+    print "\ninstalling perl module CDB_File  ";
+    system_formatted('/usr/local/cpanel/bin/cpanm --force CDB_File');
+
     return 1;
 }
 
@@ -627,5 +633,10 @@ sub set_screen_perms {
 
     print "\nfixing screen perms  ";
     system_formatted('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
+    return 1;
+}
+
+sub ensure_working_rpmdb {
+    system_formatted('/usr/local/cpanel/scripts/find_and_fix_rpm_issues');
     return 1;
 }
