@@ -53,35 +53,44 @@ setup_resolv_conf();
 
 install_yum_packages();
 
-# simplified hostname logic and removed time from hostname
-# hostname is in the format of 'os.cptier.tld'
-my $hostname = determine_hostname();
-( my $os, my $tier, my $tld ) = split /./, $hostname;
-
-# set hostname
-print "\nsetting hostname to $hostname  ";
-
-configure_99_hostname_cfg($hostname);
-
-system_formatted("/usr/local/cpanel/bin/set_hostname $hostname");
-
-configure_sysconfig_network($hostname);
-
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
 # build cpnat too ensure that '/var/cpanel/cpnat' has the correct IPs in it
 print "building cpnat\n";
 system_formatted("/usr/local/cpanel/scripts/build_cpnat");
 
-if ( -e ("/var/cpanel/cpnat") ) {
-    chomp( $ip    = qx(cat /var/cpanel/cpnat | awk '{print\$2}') );
-    chomp( $natip = qx(cat /var/cpanel/cpnat | awk '{print\$1}') );
-}
+# use a hash for system information
+my %sysinfo = (
+    "ostype"    => undef,
+    "osversion" => undef,
+    "tier"      => undef,
+    "hostname"  => undef,
+    "ip"        => undef,
+    "natip"     => undef,
+);
+
+# hostname is in the format of 'os.cptier.tld'
+get_sysinfo( \%sysinfo );
+
+my $hostname = $sysinfo{'hostname'};
+
+# set hostname
+print "\nsetting hostname to $hostname";
+
+# use whmapi1 to set hostname so that we get a return value
+# this will be important when we start processing output to ensure these calls succeed
+# https://documentation.cpanel.net/display/SDK/WHM+API+1+Functions+-+sethostname
+system_formatted("/usr/sbin/whmapi1 sethostname hostname=$hostname");
+
+# edit files with the new hostname
+configure_99_hostname_cfg($hostname);
+configure_sysconfig_network($hostname);
 
 # fix /var/cpanel/mainip file because for some reason it has an old value in it
 system_formatted("ip=`cat /etc/wwwacct.conf | grep 'ADDR ' | awk '{print \$2}'`; echo -n \$ip > /var/cpanel/mainip");
 
 # create .whostmgrft
+# this allows us to skip the initial setup upon logging into WHM
 print "\ncreating /etc/.whostmgrft  ";
 sysopen( my $etc_whostmgrft, '/etc/.whostmgrft', O_WRONLY | O_CREAT )
   or die $!;
@@ -188,7 +197,7 @@ system_formatted('/usr/local/cpanel/cpkeyclt');
 # install CloudLinux
 
 # this check should be reconsidered due to hostname determination logic refactoring
-if ( $os eq "cloudlinux" ) {
+if ( $sysinfo{'ostype'} eq "cloudlinux" ) {
     next if $force;
     print "\nCloudLinux already detected, no need to install CloudLinux.  ";
 
@@ -397,48 +406,136 @@ sub setup_resolv_conf {
     return 1;
 }
 
-# returns a fqdn hostname based on os version and cPanel tier
-sub determine_hostname {
-    unlink '/var/cpanel/sysinfo.config';
-    system_formatted("/usr/local/cpanel/scripts/gensysinfo");
+###### accepts a reference to a hash
+## original declaration
+##my %sysinfo = (
+##    "ostype"    => undef,
+##    "osversion" => undef,
+##    "tier"      => undef,
+##    "hostname"  => undef,
+##    "ip"        => undef,
+##    "natip"     => undef,
+##    );
+sub get_sysinfo {
 
-    my ( $key, $dist, $ver );
-    sysopen( my $fh, '/var/cpanel/sysinfo.config', O_RDONLY )
+    # populate '/var/cpanel/sysinfo.config'
+    _cpanel_gensysinfo();
+
+    my $ref = shift;
+
+    # get value for keys 'ostype' and 'osversion'
+    _get_ostype_and_version($ref);
+
+    # get value for key 'tier'
+    _get_cpanel_tier($ref);
+
+    # concatanate it all together
+    # get value for key 'hostname'
+    $ref->{'hostname'} = $ref->{'ostype'} . $ref->{'osversion'} . '.' . $ref->{'tier'} . ".tld";
+
+    # get value for keys 'ip' and 'natip'
+    _get_ip_and_natip($ref);
+
+    return 1;
+}
+
+###### accepts a reference to a hash
+### original declaration
+###my %sysinfo = (
+###    "ostype"    => undef,
+###    "osversion" => undef,
+###    "tier"      => undef,
+###    "hostname"  => undef,
+###    "ip"        => undef,
+###    "natip"     => undef,
+###    );
+sub _get_ip_and_natip {
+
+    my $ref = shift;
+    sysopen( my $fh, '/var/cpanel/cpnat', O_RDONLY )
       or die $!;
     while (<$fh>) {
-        chomp($_);
-        if ( $_ =~ /^rpm_dist_ver/ ) {
-            ( $key, $ver ) = split /=/, $_;
-        }
-        elsif ( $_ =~ /^rpm_dist/ ) {
-            ( $key, $dist ) = split /=/, $_;
+        if ( $_ =~ /^[1-9]/ ) {
+            ( $ref->{'natip'}, $ref->{'ip'} ) = split / /, $_;
+            chomp( $ref->{'ip'} );
         }
     }
     close $fh;
 
-    my $tier;
-    sysopen( $fh, '/etc/cpupdate.conf', O_RDONLY )
+    return 1;
+}
+
+###### accepts a reference to a hash
+### original declaration
+###my %sysinfo = (
+###    "ostype"    => undef,
+###    "osversion" => undef,
+###    "tier"      => undef,
+###    "hostname"  => undef,
+###    "ip"        => undef,
+###    "natip"     => undef,
+###    );
+sub _get_cpanel_tier {
+
+    my $ref = shift;
+    my $key;
+    sysopen( my $fh, '/etc/cpupdate.conf', O_RDONLY )
       or die $!;
     while (<$fh>) {
         chomp($_);
         if ( $_ =~ /^CPANEL/ ) {
-            ( $key, $tier ) = split /=/, $_;
+            ( $key, $ref->{'tier'} ) = split /=/, $_;
         }
     }
     close $fh;
 
     # replace . with - for hostname purposes
-    $tier =~ s/\./-/g;
+    $ref->{'tier'} =~ s/\./-/g;
 
-    # concatanate it all together
-    return $dist . $ver . '.' . $tier . ".tld";
+    return 1;
 }
 
-sub install_yum_packages {
+###### accepts a reference to a hash
+### original declaration
+###my %sysinfo = (
+###    "ostype"    => undef,
+###    "osversion" => undef,
+###    "tier"      => undef,
+###    "hostname"  => undef,
+###    "ip"        => undef,
+###    "natip"     => undef,
+###    );
+sub _get_ostype_and_version {
 
-    # ensure rpm database is not corrupted before running yum
-    print "\nchecking for rpmdb issues";
-    system_formatted("/usr/local/cpanel/scripts/find_and_fix_rpm_issues");
+    my $ref = shift;
+    my $key;
+    sysopen( my $fh, '/var/cpanel/sysinfo.config', O_RDONLY )
+      or die $!;
+    while (<$fh>) {
+        chomp($_);
+        if ( $_ =~ /^rpm_dist_ver/ ) {
+            ( $key, $ref->{'osversion'} ) = split /=/, $_;
+        }
+        elsif ( $_ =~ /^rpm_dist/ ) {
+            ( $key, $ref->{'ostype'} ) = split /=/, $_;
+        }
+    }
+    close $fh;
+    return 1;
+}
+
+# we need a function to process the output from system_formatted in order to catch and throw exceptions
+# in particular, the 'gensysinfo' will throw an exception that needs to be caught if the rpmdb is broken
+sub _cpanel_gensysinfo {
+    unlink '/var/cpanel/sysinfo.config';
+    _create_touch_file('/var/cpanel/sysinfo.config');
+    system_formatted("/usr/local/cpanel/scripts/gensysinfo");
+    return 1;
+}
+
+# we need a function to process the output from system_formatted in order to catch and throw exceptions
+# in particular, the 'gensysinfo' will throw an exception that needs to be caught if the rpmdb is broken
+sub install_yum_packages {
 
     # check for and install prereqs
     print "\ninstalling utilities via yum [mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf]  ";
@@ -449,10 +546,12 @@ sub install_yum_packages {
 # takes a hostname as an argument
 sub configure_99_hostname_cfg {
 
+    my $hn = shift;
+
     # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
     sysopen( my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY | O_CREAT )
       or die $!;
-    print $cloud_cfg "#cloud-config\n" . "hostname: $_\n";
+    print $cloud_cfg "#cloud-config\n" . "hostname: $hn\n";
     close($cloud_cfg);
     return 1;
 }
@@ -460,12 +559,14 @@ sub configure_99_hostname_cfg {
 # takes a hostname as an argument
 sub configure_sysconfig_network {
 
+    my $hn = shift;
+
     # set /etc/sysconfig/network
     print "\nupdating /etc/sysconfig/network  ";
     unlink '/etc/sysconfig/network';
     sysopen( my $etc_network, '/etc/sysconfig/network', O_WRONLY | O_CREAT )
       or die $!;
-    print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$_\n";
+    print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hn\n";
     close($etc_network);
     return 1;
 }
