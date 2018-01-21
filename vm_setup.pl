@@ -24,7 +24,6 @@ GetOptions(
 );
 
 # declare global variables for script
-my $ip;
 my $token;
 our $spincounter;
 my $InstPHPSelector = 0;
@@ -75,6 +74,7 @@ get_sysinfo( \%sysinfo );
 
 my $hostname = $sysinfo{'hostname'};
 my $natip    = $sysinfo{'natip'};
+my $ip       = $sysinfo{'ip'};
 
 # set hostname
 print "\nsetting hostname to $hostname";
@@ -90,14 +90,7 @@ configure_sysconfig_network($hostname);
 configure_wwwacct_conf( $hostname, $natip );
 configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
-
-# correct /etc/hosts
-print "\ncorrecting /etc/hosts  ";
-unlink '/etc/hosts';
-sysopen( my $etc_hosts, '/etc/hosts', O_WRONLY | O_CREAT )
-  or die $!;
-print $etc_hosts "127.0.0.1		localhost localhost.localdomain localhost4 localhost4.localdomain4\n" . "::1		localhost localhost.localdomain localhost6 localhost6.localdomain6\n" . "$ip		daily $hostname\n";
-close($etc_hosts);
+configure_etc_hosts( $hostname, $ip );
 
 # fix screen perms
 print "\nfixing screen perms  ";
@@ -608,6 +601,26 @@ sub configure_wwwacct_conf {
     print $fh "CONTACTEMAIL\n";
     print $fh "LOGSTYLE combined\n";
     print $fh "DEFWEBMAILTHEME paper_lantern\n";
+    close($fh);
+    return 1;
+}
+
+# takes two arguments
+# # arg1 = hostname
+# # arg2 = ip
+sub configure_etc_hosts {
+
+    my $hn       = shift;
+    my $local_ip = shift;
+
+    # corrent /etc/hosts
+    print "\ncorrecting /etc/hosts  ";
+    unlink '/etc/hosts';
+    sysopen( my $fh, '/etc/hosts', O_WRONLY | O_CREAT )
+      or die $!;
+    print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
+    print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
+    print $fh "$local_ip    host $hostname\n";
     close($fh);
     return 1;
 }
