@@ -96,6 +96,8 @@ configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
 configure_etc_hosts( $hostname, $ip );
 
+add_custom_bashrc_to_bash_profile();
+
 # set env variable
 # I am not entirely sure what we need this for or if it is even needed
 # leaving for now but will need to be reevaluated in later on
@@ -105,20 +107,6 @@ create_api_token();
 create_primary_account();
 
 update_tweak_settings();
-
-print "\nCreating /root/.bash_profile aliases ";
-if ( -e ("/root/.bash_profile") ) {
-
-    # Backup the current one if it exists.
-    system_formatted("cp -rfp /root/.bash_profile /root/.bash_profile.vmsetup");
-}
-
-# Append.
-open( my $roots_bashprofile, ">>", '/root/.bash_profile' ) or die $!;
-print $roots_bashprofile <<EOF;
-source /dev/stdin <<< "\$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)"
-EOF
-close($roots_bashprofile);
 
 # upcp
 if ( !$full && !$fast ) {
@@ -688,5 +676,16 @@ sub update_tweak_settings {
     print "\nUpdating tweak settings (cpanel.config)  ";
     system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
     system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
+    return 1;
+}
+
+# append aliases directly into STDIN upon login
+sub add_custom_bashrc_to_bash_profile {
+
+    my $txt = q[ source /dev/stdin <<< "$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)" ];
+    open( my $fh, ">>", '/root/.bash_profile' ) or die $!;
+    print $fh "$txt\n";
+    close $fh;
+
     return 1;
 }
