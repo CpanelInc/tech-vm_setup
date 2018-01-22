@@ -472,8 +472,8 @@ sub install_packages {
     ensure_working_rpmdb();
 
     my ( $w_fh, $r_fh, $pid );
-    my $modules = q[ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ];
-    eval { $pid = open3( $w_fh, $r_fh, '>&STDERR', '/usr/bin/yum', '-y', $modules ); };
+    my $cmd = q[ yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ];
+    eval { $pid = open3( $w_fh, $r_fh, '>&STDERR', $cmd ); };
     die "open3: $@\n" if $@;
 
     if ($verbose) {
