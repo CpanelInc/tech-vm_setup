@@ -104,10 +104,7 @@ local $ENV{'REMOTE_USER'} = 'root';
 create_api_token();
 create_primary_account();
 
-# updating tweak settings
-print "\nUpdating tweak settings (cpanel.config)  ";
-system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
-system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
+update_tweak_settings();
 
 print "\nCreating /root/.bash_profile aliases ";
 if ( -e ("/root/.bash_profile") ) {
@@ -683,5 +680,13 @@ sub create_primary_account {
     print "\nadding all privs for cptest_testuser to cptest_testdb  ";
     system_formatted("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
+    return 1;
+}
+
+sub update_tweak_settings {
+
+    print "\nUpdating tweak settings (cpanel.config)  ";
+    system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
+    system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
     return 1;
 }
