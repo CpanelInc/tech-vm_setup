@@ -451,7 +451,6 @@ sub _get_ostype_and_version {
 # we need a function to process the output from system_formatted in order to catch and throw exceptions
 # in particular, the 'gensysinfo' will throw an exception that needs to be caught if the rpmdb is broken
 sub _cpanel_gensysinfo {
-    ensure_working_rpmdb();
     unlink '/var/cpanel/sysinfo.config';
     _create_touch_file('/var/cpanel/sysinfo.config');
     system_formatted("/usr/local/cpanel/scripts/gensysinfo");
