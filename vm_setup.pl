@@ -215,11 +215,12 @@ sub system_formatted {
 }
 
 # use String::Random to generate 25 digit password
+# only use alphanumeric chars in pw
 # return the pw
 sub _genpw {
 
     my $gen = String::Random->new();
-    return $gen->randpattern(".........................");
+    return $gen->randregex('\w{25}');
 }
 
 # appends argument(s) to the end of /etc/motd
