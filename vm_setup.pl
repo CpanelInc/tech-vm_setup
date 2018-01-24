@@ -11,8 +11,6 @@ use IO::Select;
 use String::Random;
 use IPC::Open3;
 
-local $| = 1;
-
 my $VERSION = '0.6.1';
 
 # declare variables for script options and hanle them
@@ -27,8 +25,6 @@ GetOptions(
 );
 
 # declare global variables for script
-my $token;
-our $spincounter;
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
 
@@ -60,7 +56,7 @@ set_screen_perms();
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
 # build cpnat too ensure that '/var/cpanel/cpnat' has the correct IPs in it
-print "building cpnat\n";
+print "\nbuilding cpnat ";
 system_formatted("/usr/local/cpanel/scripts/build_cpnat");
 
 # use a hash for system information
@@ -102,6 +98,8 @@ add_custom_bashrc_to_bash_profile();
 # I am not entirely sure what we need this for or if it is even needed
 # leaving for now but will need to be reevaluated in later on
 local $ENV{'REMOTE_USER'} = 'root';
+
+add_motd("\n\nVM Setup Script created the following test accounts:\n");
 
 create_api_token();
 create_primary_account();
@@ -186,30 +184,69 @@ else {
 exit;
 
 ### subs
-sub print_formatted {
-    my @input = split /\n/, $_;
-    foreach (@input) {
-        if ( $_ =~ /token:/ ) {
-            ( my $key, $token ) = split /:/, $_;
-        }
+
+sub process_output {
+
+    my $line = shift;
+
+    if ( $line =~ /token:/ ) {
+        ( my $key, my $token ) = split /:/, $line;
+        add_motd( "Token name - all_access: " . $token . "\n" );
     }
 
-    if ($verbose) {
-        foreach (@input) { print "    $_\n"; }
-    }
-    else {
-        &spin;
-    }
     return 1;
 }
 
-# look at logic in install_packages and consider refactoring this function in a future version
-sub system_formatted {
-    open( my $cmd, "-|", "$_[0]" ) or die $!;
-    while (<$cmd>) {
-        print_formatted("$_");
+sub print_formatted {
+
+    my $r_fh = shift;
+
+    my $sel = IO::Select->new();    # notify us of reads on on our FHs
+    $sel->add($r_fh);               # add the FH we are interested in
+    while ( my @ready = $sel->can_read ) {
+        foreach my $fh (@ready) {
+            my $line = <$fh>;
+            if ( not defined $line ) {    # EOF for FH
+                $sel->remove($fh);
+                next;
+            }
+
+            else {
+                process_output($line);
+            }
+
+            if ($verbose) {
+                print $line;
+            }
+        }
     }
-    close $cmd;
+
+    return 1;
+}
+
+sub system_formatted {
+
+    my $cmd = shift;
+    my ( $pid, $w_fh, $r_fh );
+
+    eval { $pid = open3( $w_fh, $r_fh, '>&STDERR', $cmd ); };
+    die "open3: $@\n" if $@;
+
+    if ($verbose) {
+        print_formatted($r_fh);
+    }
+    else {
+        # wait on child to finish before proceeding
+        # we could optimize this, but that is outside the scope of TECH-411
+        waitpid( $pid, 0 );
+        my $exit_status = $? >> 8;
+
+        # if yum completes successfully, it will return 0
+        # otherwise, it returns 1
+        if ( $exit_status && $exit_status != 0 ) {
+            print("\n\nWARN:  yum may have failed to install some modules\n\n");
+        }
+    }
 
     return 1;
 }
@@ -228,14 +265,6 @@ sub add_motd {
     open( my $etc_motd, ">>", '/etc/motd' ) or die $!;
     print $etc_motd "@_\n";
     close $etc_motd;
-
-    return 1;
-}
-
-sub spin {
-    my %spinner = ( '|' => '/', '/' => '-', '-' => '\\', '\\' => '|' );
-    $spincounter = ( !defined $spincounter ) ? '|' : $spinner{$spincounter};
-    print STDERR "\b$spincounter";
 
     return 1;
 }
@@ -623,15 +652,10 @@ sub ensure_working_rpmdb {
 }
 
 # this creates an api token and adds it to '/etc/motd'
-# eventually, I would like to move $token to be local to this function
-# however, this needs to wait on system_formatted to call a process_output function
-# system_formatted will also need be modified to access / return variables for this to happen
-# this is on the roadmap but is not within the scope of epic TECH-411
 sub create_api_token {
 
     print "\ncreating api token";
     system_formatted('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
-    add_motd( "Token name - all_access: " . $token . "\n" );
 
     return 1;
 }
@@ -642,7 +666,6 @@ sub create_primary_account {
 
     my $rndpass;
 
-    add_motd("VM Setup Script created the following test accounts:\n");
     add_motd( "one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
 
     # create test account
@@ -662,7 +685,7 @@ sub create_primary_account {
     print "\ncreating test db user - cptest_testuser  ";
     $rndpass = _genpw();
     system_formatted( "/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass );
-    add_motd("mysql test user:  username:  cptest_testuser\n");
+    add_motd("mysql test user:  username:  cptest_testuser");
     add_motd("                  password:  $rndpass\n");
 
     print "\nadding all privs for cptest_testuser to cptest_testdb  ";
