@@ -43,11 +43,6 @@ if ($help) {
 # also converting this to a function to avoid performing tasks in main
 handle_lock_file();
 
-# proces full and fast arguments
-# full = y
-# otherwise, we return n
-my $answer = full_or_fast();
-
 setup_resolv_conf();
 
 install_packages();
@@ -99,12 +94,18 @@ add_custom_bashrc_to_bash_profile();
 # leaving for now but will need to be reevaluated in later on
 local $ENV{'REMOTE_USER'} = 'root';
 
+# header message for '/etc/motd' placed here to ensure it is added before anything else
 add_motd("\n\nVM Setup Script created the following test accounts:\n");
 
 create_api_token();
 create_primary_account();
 
 update_tweak_settings();
+
+# proces full and fast arguments
+# full = y
+# otherwise, we return n
+my $answer = full_or_fast();
 
 # upcp
 if ( !$full && !$fast ) {
