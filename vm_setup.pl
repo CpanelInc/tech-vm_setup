@@ -128,9 +128,15 @@ if ( $answer eq "y" ) {
     system_formatted('/scripts/check_cpanel_rpms --fix');
 }
 
+# I do not really see a purpose for doing this in this script and on our test vms
+# especially since most of the API calls in this script check the license anyway
+# and fail if it is not valid
+# commenting it out for now and will revisit if it becomes an issue
+# one thought if it does prove to be necessary is to change the order so that it gets
+# ran before any of the API calls
 # update cplicense
-print "\nupdating cpanel license  ";
-system_formatted('/usr/local/cpanel/cpkeyclt');
+# print "\nupdating cpanel license  ";
+# system_formatted('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
 
@@ -297,7 +303,8 @@ sub print_help_and_exit {
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
     print "- Fixes screen permissions\n";
-    print "- Runs cpkeyclt\n";
+
+    # print "- Runs cpkeyclt\n";
     print "- Creates test account (with email and database)\n";
     print "- Disables cphulkd\n";
     print "- Creates api key\n";
