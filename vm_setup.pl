@@ -101,6 +101,7 @@ create_api_token();
 create_primary_account();
 
 update_tweak_settings();
+disable_cphulkd();
 
 # proces full and fast arguments
 # full = y
@@ -126,11 +127,6 @@ if ( $answer eq "y" ) {
     print "\nrunning check_cpanel_rpms  ";
     system_formatted('/scripts/check_cpanel_rpms --fix');
 }
-
-# disable cphulkd
-print "\ndisabling cphulkd  ";
-system_formatted('/usr/local/cpanel/etc/init/stopcphulkd');
-system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 
 # update cplicense
 print "\nupdating cpanel license  ";
@@ -710,6 +706,16 @@ sub add_custom_bashrc_to_bash_profile {
     open( my $fh, ">>", '/root/.bash_profile' ) or die $!;
     print $fh "$txt\n";
     close $fh;
+
+    return 1;
+}
+
+# stop and disable cphulkd
+sub disable_cphulkd {
+
+    print "\ndisabling cphulkd  ";
+    system_formatted('/usr/local/cpanel/etc/init/stopcphulkd');
+    system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 
     return 1;
 }
