@@ -103,30 +103,9 @@ create_primary_account();
 update_tweak_settings();
 disable_cphulkd();
 
-# proces full and fast arguments
-# full = y
-# otherwise, we return n
-my $answer = full_or_fast();
-
-# upcp
-if ( !$full && !$fast ) {
-    print "would you like to run upcp now? [n]: ";
-    $answer = _stdin();
-}
-if ( $answer eq "y" ) {
-    print "\nrunning upcp ";
-    system_formatted('/scripts/upcp');
-}
-
-# running another check_cpanel_rpms
-if ( !$full && !$fast ) {
-    print "\nwould you like to run check_cpanel_rpms now? [n]: ";
-    $answer = _stdin();
-}
-if ( $answer eq "y" ) {
-    print "\nrunning check_cpanel_rpms  ";
-    system_formatted('/scripts/check_cpanel_rpms --fix');
-}
+# user has option to run upcp and check_cpanel_rpms
+# this takes user input if necessary and executes these two processes if desired
+handle_additional_options();
 
 # I do not really see a purpose for doing this in this script and on our test vms
 # especially since most of the API calls in this script check the license anyway
@@ -329,18 +308,6 @@ sub _create_touch_file {
     open( my $touch_file, ">>", "$_[0]" ) or die $!;
     close $touch_file;
     return 1;
-}
-
-# process full and fast script args
-# return y or n
-sub full_or_fast {
-    if ($full) {
-        print "--full passed. Passing y to all optional setup options.\n\n";
-        return "y";
-    }
-    else {
-        return "n";
-    }
 }
 
 # recreate resolv.conf using cPanel resolvers
@@ -677,5 +644,47 @@ sub disable_cphulkd {
     system_formatted('/usr/local/cpanel/etc/init/stopcphulkd');
     system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 
+    return 1;
+}
+
+# user has option to run upcp and check_cpanel_rpms
+# this takes user input if necessary and executes these two processes if desired
+sub handle_additional_options {
+
+    # upcp first
+    my $answer = get_answer("would you like to run upcp now? [n]: ");
+    if ( $answer eq "y" ) {
+        print "\nrunning upcp ";
+        system_formatted('/scripts/upcp');
+    }
+
+    # check_cpanel_rpms second
+    $answer = get_answer("\nwould you like to run check_cpanel_rpms now? [n]: ");
+    if ( $answer eq "y" ) {
+        print "\nrunning check_cpanel_rpms  ";
+        system_formatted('/scripts/check_cpanel_rpms --fix');
+    }
+
+    return 1;
+}
+
+# takes 1 argument - a string to print to obtain user input if necessary
+# return y or n
+sub get_answer {
+
+    my $question = shift;
+
+    if ($fast) {
+        return 'n';
+    }
+    elsif ($full) {
+        return 'y';
+    }
+    else {
+        print $question;
+        return _stdin();
+    }
+
+    # this should not be possible to reach
     return 1;
 }
