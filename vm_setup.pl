@@ -153,8 +153,7 @@ if ($cltrue) {
 }
 
 # restart cpsrvd
-print "\nRestarting cpsvrd  ";
-system_formatted("/usr/local/cpanel/scripts/restartsrv_cpsrvd");
+restart_cpsrvd();
 
 # exit cleanly
 print "\nSetup complete\n\n";
@@ -690,5 +689,12 @@ sub get_answer {
     }
 
     # this should not be possible to reach
+    return 1;
+}
+
+sub restart_cpsrvd {
+
+    print "\nRestarting cpsvrd  ";
+    system_formatted("/usr/local/cpanel/scripts/restartsrv_cpsrvd");
     return 1;
 }
