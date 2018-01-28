@@ -156,19 +156,13 @@ if ($cltrue) {
 restart_cpsrvd();
 
 # exit cleanly
-print "\nSetup complete\n\n";
-system_formatted('cat /etc/motd');
-print "\n";
-if ($cltrue) {
-    print "\n\nCloudLinux installed! A reboot is required!\n\n";
-}
-else {
-    print "\n\nYou should log out and back in.\n\n";
-}
+clean_exit();
 
 exit;
 
-### subs
+##############  END OF MAIN ##########################
+
+##############  BEGIN SUBROUTINES ####################
 
 sub process_output {
 
@@ -696,5 +690,37 @@ sub restart_cpsrvd {
 
     print "\nRestarting cpsvrd  ";
     system_formatted("/usr/local/cpanel/scripts/restartsrv_cpsrvd");
+    return 1;
+}
+
+# exit cleanly
+sub clean_exit {
+
+    print "\nSetup complete\n\n";
+    _cat_file('/etc/motd');
+    print "\n";
+    if ($cltrue) {
+        print "\n\nCloudLinux installed! A reboot is required!\n\n";
+    }
+    else {
+        print "\n\nYou should log out and back in.\n\n";
+    }
+
+    exit;
+}
+
+# takes filename as argument and prints output of file to STDOUT
+sub _cat_file {
+
+    my $fn = shift;
+    sysopen( my $fh, $fn, O_RDONLY )
+      or die $!;
+
+    while (<$fh>) {
+        print $_;
+    }
+
+    close $fh;
+
     return 1;
 }
