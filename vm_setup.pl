@@ -238,18 +238,9 @@ sub system_formatted {
     if ($verbose) {
         print_formatted($r_fh);
     }
-    else {
-        # wait on child to finish before proceeding
-        # we could optimize this, but that is outside the scope of TECH-411
-        waitpid( $pid, 0 );
-        my $exit_status = $? >> 8;
 
-        # if yum completes successfully, it will return 0
-        # otherwise, it returns 1
-        if ( $exit_status && $exit_status != 0 ) {
-            print("\n\nWARN:  yum may have failed to install some modules\n\n");
-        }
-    }
+    # wait on child to finish before proceeding
+    waitpid( $pid, 0 );
 
     return 1;
 }
@@ -490,52 +481,14 @@ sub _cpanel_gensysinfo {
     return 1;
 }
 
-# refactored this logic to use open3 instead of the logic in system_formatted() due to ongoing issues
-# with rpmdb getting corrupted due to yum not completeling before we move on from this
-#
-# the logic used here will likely be used to replace the logic used in system_formatted() in a future version
-# but that is beyond the scope of TECH-411
+# verifies the integrity of the rpmdb and install some useful yum packages
 sub install_packages {
 
-    # perhaps something like this will work here:  http://www.perlmonks.org/?node_id=957403
-
-    # check for and install prereqs
+    # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
     print "\ninstalling utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ]  ";
     ensure_working_rpmdb();
-
-    my ( $w_fh, $r_fh, $pid );
-    my $cmd = q[ yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ];
-    eval { $pid = open3( $w_fh, $r_fh, '>&STDERR', $cmd ); };
-    die "open3: $@\n" if $@;
-
-    if ($verbose) {
-        my $sel = IO::Select->new();    # notify us of reads on on our FHs
-        $sel->add($r_fh);               # add the FH we are interested in
-        while ( my @ready = $sel->can_read ) {
-            foreach my $fh (@ready) {
-                my $line = <$fh>;
-                if ( not defined $line ) {    # EOF for FH
-                    $sel->remove($fh);
-                    next;
-                }
-
-                print $line;
-            }
-        }
-    }
-    else {
-        # wait on child to finish before proceeding
-        # we could optimize this, but that is outside the scope of TECH-411
-        waitpid( $pid, 0 );
-        my $exit_status = $? >> 8;
-
-        # if yum completes successfully, it will return 0
-        # otherwise, it returns 1
-        if ( $exit_status && $exit_status != 0 ) {
-            print("\n\nWARN:  yum may have failed to install some modules\n\n");
-        }
-    }
+    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File');
 
     return 1;
 }
