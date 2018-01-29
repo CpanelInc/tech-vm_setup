@@ -77,7 +77,7 @@ print "\nsetting hostname to $hostname";
 # use whmapi1 to set hostname so that we get a return value
 # this will be important when we start processing output to ensure these calls succeed
 # https://documentation.cpanel.net/display/SDK/WHM+API+1+Functions+-+sethostname
-system_formatted("/usr/sbin/whmapi1 sethostname hostname=$hostname");
+system_formatted("/usr/local/cpanel/bin/whmapi1 sethostname hostname=$hostname");
 
 # edit files with the new hostname
 configure_99_hostname_cfg($hostname);
@@ -576,7 +576,7 @@ sub ensure_working_rpmdb {
 sub create_api_token {
 
     print "\ncreating api token";
-    system_formatted('/usr/sbin/whmapi1 api_token_create token_name=all_access acl-1=all');
+    system_formatted('/usr/local/cpanel/bin/whmapi1 api_token_create token_name=all_access acl-1=all');
 
     return 1;
 }
@@ -592,25 +592,25 @@ sub create_primary_account {
     # create test account
     print "\ncreating test account - cptest  ";
     $rndpass = _genpw();
-    system_formatted( "/usr/sbin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" );
+    system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" );
     add_motd( "one-liner for access to cPanel user: cptest\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n" );
 
     print "\ncreating test email - testing\@cptest.tld  ";
     $rndpass = _genpw();
-    system_formatted( "/usr/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass );
+    system_formatted( "/usr/local/cpanel/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass );
     add_motd( "one-liner for access to test email account: testing\@cptest.tld\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n" );
 
     print "\ncreating test database - cptest_testdb  ";
-    system_formatted("/usr/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
+    system_formatted("/usr/local/cpanel/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
 
     print "\ncreating test db user - cptest_testuser  ";
     $rndpass = _genpw();
-    system_formatted( "/usr/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass );
+    system_formatted( "/usr/local/cpanel/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass );
     add_motd("mysql test user:  username:  cptest_testuser");
     add_motd("                  password:  $rndpass\n");
 
     print "\nadding all privs for cptest_testuser to cptest_testdb  ";
-    system_formatted("/usr/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
+    system_formatted("/usr/local/cpanel/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
     return 1;
 }
@@ -618,8 +618,8 @@ sub create_primary_account {
 sub update_tweak_settings {
 
     print "\nUpdating tweak settings (cpanel.config)  ";
-    system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
-    system_formatted("/usr/sbin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
+    system_formatted("/usr/local/cpanel/bin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
+    system_formatted("/usr/local/cpanel/bin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
     return 1;
 }
 
@@ -638,7 +638,7 @@ sub add_custom_bashrc_to_bash_profile {
 sub disable_cphulkd {
 
     print "\ndisabling cphulkd  ";
-    system_formatted('/usr/local/cpanel/etc/init/stopcphulkd');
+    system_formatted('/usr/local/cpanel/scripts/restartsrv_cphulkd');
     system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 
     return 1;
