@@ -11,7 +11,7 @@ use IO::Select;
 use String::Random;
 use IPC::Open3;
 
-my $VERSION = '0.6.1';
+my $VERSION = '1.0.0';
 
 # declare variables for script options and hanle them
 my ( $help, $verbose, $full, $fast, $force, $cltrue );
@@ -25,6 +25,8 @@ GetOptions(
 );
 
 # declare global variables for script
+# both of these variables are used during CL install portion
+# of script and their necessity should be reviewed during TECH-407
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
 
@@ -40,7 +42,6 @@ if ($help) {
 
 # we should check for the lock file and exit if force argument not passed right after checking for help
 # to ensure that no work is performed in this scenario
-# also converting this to a function to avoid performing tasks in main
 handle_lock_file();
 
 setup_resolv_conf();
@@ -118,8 +119,9 @@ handle_additional_options();
 # system_formatted('/usr/local/cpanel/cpkeyclt');
 
 # install CloudLinux
+# this logic should be moved to a subroutine and
+# it will be revisited in TECH-407
 
-# this check should be reconsidered due to hostname determination logic refactoring
 # looks like this logic should work for now
 # from a CL server
 # # grep ^rpm_dist /var/cpanel/sysinfo.config
@@ -161,9 +163,54 @@ clean_exit();
 exit;
 
 ##############  END OF MAIN ##########################
-
+#
+# list of subroutines for the script
+#
+# system_formatted() - takes a system call as an argument and uses open3() to make the syscall
+# add_motd() - appends all argumnets to '/etc/motd'
+# get_sysinfo() - populates %sysinfo hash with data
+# install_packages() - instals some useful yum packages
+# create_api_token() - make API call to creaate an API token with the 'all' acl and add the token to '/etc/motd'
+# create_primary_account() - create 'cptest' cPanel acct w/ email address, db, and dbuser - then add info to '/etc/motd'
+# update_tweak_settings() - update tweak settings to allow remote domains and unregisteredomains
+# disable_cphulkd() - stop and disable cphulkd
+# restart_cpsrvd() - restarts cpsrvd
+#
+# print_help_and_exit() - ran if --help is passed - prints script usage/info and exits
+# handle_lock_file() - exit if lock file exists and --force is not passed, otherwise, create lock file
+# handle_additional_options() - the script user has option to run a cPanel update and check_cpanel_rpms.  This executes these processes if the user desires
+# clean_exit() - print some helpful output for the user before exiting
+#
+# setup_resolv_conf() - sets '/etc/resolv.conf' to use cPanel resolvers
+# configure_99_hostname_cfg() - ensure '/etc/cloud/cloud.cfg.d/99_hostname.cfg' has proper contents
+# configure_sysconfig_network() - ensure '/etc/sysconfig/network' has proper contents
+# configure_mainip() - ensure '/var/cpanel/mainip' has proper contents
+# configure_whostmgrft() - touch '/etc/.whostmgrft' to skip initial WHM setup
+# configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
+# configure_etc_hosts() - ensure '/etc/hosts' has proper contents
+# add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
+#
+# process_output() - processes the output of syscalls passed to system_formatted()
+# print_formatted() - listens to read filehandle from syscall, and prints the output to STDOUT if verbose flag is used
+# set_screen_perms() - ensure 'screen' binary has proper ownership/permissions
+# ensure_working_rpmdb() - make sure that rpmdb is in working order before making yum syscall
+# get_answer() - determines answer from user regarding additional options.  This subroutine takes a prompt string for STDOUT to the user and returns 'y' or 'n' depending on their answer
+#
+# _gen_pw() - returns a 25 char rand pw
+# _stdin() - returns a string taken from STDIN
+# _create_touch_file - take file name as argument and works similar to 'touch' command in bash
+# _get_ip_and_natip() - called by get_sysinfo() to populate %sysinfo hash with system IP and NATIP
+# _get_cpanel_tier - called by get_sysinfo() to populate %sysinfo hash with the cPanel tier
+# _get_ostype_and_version() - called by get_sysinfo() to populate %sysinfo hash with the ostype and osversion
+# _cpanel_getsysinfo() - called by get_sysinfo() to ensure that '/var/cpanel/sysinfo.config' is up to date
+# _cat_file() - takes filename as arg and mimics bash cat command
+#
 ##############  BEGIN SUBROUTINES ####################
 
+# takes a line of output from the syscall as an argument
+# and checks for various results
+# this will be flushed out further in a later case
+# as part of a feature request
 sub process_output {
 
     my $line = shift;
@@ -176,6 +223,10 @@ sub process_output {
     return 1;
 }
 
+# takes a read filehandle from system_formatted() as an argument
+# prints text to STDOUT if verbose flag is given
+# listens to the file handle for lines of text and sends them to
+# process_output() to look for certain restults
 sub print_formatted {
 
     my $r_fh = shift;
@@ -203,6 +254,9 @@ sub print_formatted {
     return 1;
 }
 
+# takes a system call as an argument and uses open3() to process it
+# also call print_formatted() to so that we can process the output of the system call
+# and print the results to STDOUT if the verbose flag is used
 sub system_formatted {
 
     my $cmd = shift;
@@ -239,6 +293,7 @@ sub add_motd {
     return 1;
 }
 
+# get stdin from user and return it
 sub _stdin {
     my $io;
     my $string = q{};
@@ -252,6 +307,7 @@ sub _stdin {
     return $string;
 }
 
+# print script usage information and exit
 sub print_help_and_exit {
     print "Usage: perl vm_setup.pl [options]\n\n";
     print "Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. \n\n";
@@ -283,6 +339,10 @@ sub print_help_and_exit {
     exit;
 }
 
+# script should only be ran once without force
+# exit if it has been ran and force not passed
+# do nothing if force passed
+# create lock file otherwise
 sub handle_lock_file {
     if ( -e "/root/vmsetup.lock" ) {
         if ( !$force ) {
@@ -301,6 +361,7 @@ sub handle_lock_file {
     return 1;
 }
 
+# mimic bash touch command
 sub _create_touch_file {
     open( my $touch_file, ">>", "$_[0]" ) or die $!;
     close $touch_file;
@@ -567,6 +628,7 @@ sub set_screen_perms {
     return 1;
 }
 
+# fixes common issues with rpmdb if they exist
 sub ensure_working_rpmdb {
     system_formatted('/usr/local/cpanel/scripts/find_and_fix_rpm_issues');
     return 1;
@@ -615,6 +677,7 @@ sub create_primary_account {
     return 1;
 }
 
+# update tweak settings to allow creation of nonexistent addon domains
 sub update_tweak_settings {
 
     print "\nUpdating tweak settings (cpanel.config)  ";
