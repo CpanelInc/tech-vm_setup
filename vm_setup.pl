@@ -264,9 +264,7 @@ sub system_formatted {
     eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
     die "open3: $@\n" if $@;
 
-    if ($verbose) {
-        print_formatted($r_fh);
-    }
+    print_formatted($r_fh);
 
     # wait on child to finish before proceeding
     waitpid( $pid, 0 );
