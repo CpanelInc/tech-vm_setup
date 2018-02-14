@@ -126,8 +126,7 @@ handle_additional_options();
 # from a CL server
 # # grep ^rpm_dist /var/cpanel/sysinfo.config
 # rpm_dist=cloudlinux
-if ( $sysinfo{'ostype'} eq "cloudlinux" ) {
-    next if $force;
+if ( not $force and $sysinfo{'ostype'} eq "cloudlinux" ) {
     print "\nCloudLinux already detected, no need to install CloudLinux.  ";
 
     # No need to install CloudLinux. It's already installed
