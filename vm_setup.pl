@@ -294,15 +294,9 @@ sub add_motd {
 
 # get stdin from user and return it
 sub _stdin {
-    my $io;
     my $string = q{};
 
-    $io = IO::Handle->new();
-    if ( $io->fdopen( fileno(STDIN), 'r' ) ) {
-        $string = $io->getline();
-        $io->close();
-    }
-    chomp $string;
+    chomp( $string = <> );
     return $string;
 }
 
