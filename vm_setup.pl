@@ -356,7 +356,9 @@ sub handle_lock_file {
 
 # mimic bash touch command
 sub _create_touch_file {
-    open( my $touch_file, ">>", "$_[0]" ) or die $!;
+    my $fn = shift;
+
+    open( my $touch_file, ">", $fn ) or die $!;
     close $touch_file;
     return 1;
 }
