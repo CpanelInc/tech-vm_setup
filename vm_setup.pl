@@ -259,9 +259,9 @@ sub print_formatted {
 sub system_formatted {
 
     my $cmd = shift;
-    my ( $pid, $w_fh, $r_fh );
+    my ( $pid, $r_fh );
 
-    eval { $pid = open3( $w_fh, $r_fh, '>&STDERR', $cmd ); };
+    eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
     die "open3: $@\n" if $@;
 
     if ($verbose) {
