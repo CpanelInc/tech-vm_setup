@@ -11,7 +11,7 @@ use IO::Select;
 use String::Random;
 use IPC::Open3;
 
-my $VERSION = '1.0.0';
+my $VERSION = '1.0.1';
 
 # declare variables for script options and hanle them
 my ( $help, $verbose, $full, $fast, $force, $cltrue );
@@ -371,8 +371,7 @@ sub _create_touch_file {
 # recreate resolv.conf using cPanel resolvers
 sub setup_resolv_conf {
     print "\nadding resolvers ";
-    unlink '/etc/resolv.conf';
-    sysopen( my $etc_resolv_conf, '/etc/resolv.conf', O_WRONLY | O_CREAT )
+    open( my $etc_resolv_conf, '>', '/etc/resolv.conf' )
       or die $!;
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
     close($etc_resolv_conf);
@@ -425,7 +424,7 @@ sub get_sysinfo {
 sub _get_ip_and_natip {
 
     my $ref = shift;
-    sysopen( my $fh, '/var/cpanel/cpnat', O_RDONLY )
+    open( my $fh, '<', '/var/cpanel/cpnat' )
       or die $!;
     while (<$fh>) {
         if ( $_ =~ /^[1-9]/ ) {
@@ -452,7 +451,7 @@ sub _get_cpanel_tier {
 
     my $ref = shift;
     my $key;
-    sysopen( my $fh, '/etc/cpupdate.conf', O_RDONLY )
+    open( my $fh, '<', '/etc/cpupdate.conf' )
       or die $!;
     while (<$fh>) {
         chomp($_);
@@ -482,7 +481,7 @@ sub _get_ostype_and_version {
 
     my $ref = shift;
     my $key;
-    sysopen( my $fh, '/var/cpanel/sysinfo.config', O_RDONLY )
+    open( my $fh, '<', '/var/cpanel/sysinfo.config' )
       or die $!;
     while (<$fh>) {
         chomp($_);
@@ -524,7 +523,7 @@ sub configure_99_hostname_cfg {
     my $hn = shift;
 
     # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
-    sysopen( my $cloud_cfg, '/etc/cloud/cloud.cfg.d/99_hostname.cfg', O_WRONLY | O_CREAT )
+    open( my $cloud_cfg, '>', '/etc/cloud/cloud.cfg.d/99_hostname.cfg' )
       or die $!;
     print $cloud_cfg "#cloud-config\n" . "hostname: $hn\n";
     close($cloud_cfg);
@@ -538,8 +537,7 @@ sub configure_sysconfig_network {
 
     # set /etc/sysconfig/network
     print "\nupdating /etc/sysconfig/network  ";
-    unlink '/etc/sysconfig/network';
-    sysopen( my $etc_network, '/etc/sysconfig/network', O_WRONLY | O_CREAT )
+    open( my $etc_network, '>', '/etc/sysconfig/network' )
       or die $!;
     print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hn\n";
     close($etc_network);
@@ -552,8 +550,7 @@ sub configure_mainip {
     my $nat = shift;
 
     print "\nupdating /var/cpanel/mainip  ";
-    unlink '/var/cpanel/mainip';
-    sysopen( my $fh, '/var/cpanel/mainip', O_WRONLY | O_CREAT )
+    open( my $fh, '>', '/var/cpanel/mainip' )
       or die $!;
     print $fh "$nat";
     close($fh);
@@ -576,8 +573,7 @@ sub configure_wwwacct_conf {
 
     # correct wwwacct.conf
     print "\ncorrecting /etc/wwwacct.conf  ";
-    unlink '/etc/wwwacct.conf';
-    sysopen( my $fh, '/etc/wwwacct.conf', O_WRONLY | O_CREAT )
+    open( my $fh, '>', '/etc/wwwacct.conf' )
       or die $!;
     print $fh "HOST $hn\n";
     print $fh "ADDR $nat\n";
@@ -610,8 +606,7 @@ sub configure_etc_hosts {
 
     # corrent /etc/hosts
     print "\ncorrecting /etc/hosts  ";
-    unlink '/etc/hosts';
-    sysopen( my $fh, '/etc/hosts', O_WRONLY | O_CREAT )
+    open( my $fh, '>', '/etc/hosts' )
       or die $!;
     print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
     print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
@@ -776,7 +771,7 @@ sub clean_exit {
 sub _cat_file {
 
     my $fn = shift;
-    sysopen( my $fh, $fn, O_RDONLY )
+    open( my $fh, '<', $fn )
       or die $!;
 
     while (<$fh>) {
