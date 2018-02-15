@@ -515,11 +515,15 @@ sub configure_99_hostname_cfg {
 
     my $hn = shift;
 
-    # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
-    open( my $cloud_cfg, '>', '/etc/cloud/cloud.cfg.d/99_hostname.cfg' )
-      or die $!;
-    print $cloud_cfg "#cloud-config\n" . "hostname: $hn\n";
-    close($cloud_cfg);
+    if ( -e '/etc/cloud/cloud.cfg.d/' and -d '/etc/cloud/cloud.cfg.d/' ) {
+
+        # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
+        open( my $cloud_cfg, '>', '/etc/cloud/cloud.cfg.d/99_hostname.cfg' )
+          or die $!;
+        print $cloud_cfg "#cloud-config\n" . "hostname: $hn\n";
+        close($cloud_cfg);
+    }
+
     return 1;
 }
 
