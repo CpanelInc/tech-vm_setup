@@ -1,0 +1,6 @@
+severity = 4
+verbose  = [%p] Line %l Column %c - %m - %e. (Severity: %s)\n
+
+[InputOutput::RequireBriefOpen]
+lines = 30
+

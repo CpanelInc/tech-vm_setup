@@ -13,6 +13,7 @@ Options:
    --fast: Skips all optional setup functions.
    --full: Passes yes to all optional setup functions.
    --installcl: Installs CloudLinux (can take a while and requires reboot).
+   --verbose: Provides additional output
 
 Full list of things this does: 
 
@@ -24,7 +25,6 @@ Full list of things this does:
    Performs basic setup wizard
    Fixes /etc/hosts
    Fixes screen permissions
-   Runs cpkeyclt
    Creates test account
    Disables cphulkd
    Creates access hash
