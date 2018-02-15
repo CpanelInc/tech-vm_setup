@@ -13,7 +13,7 @@ use IPC::Open3;
 
 my $VERSION = '1.0.1';
 
-# declare variables for script options and hanle them
+# declare variables for script options and handle them
 my ( $help, $verbose, $full, $fast, $force, $cltrue );
 GetOptions(
     "help"      => \$help,
@@ -25,7 +25,7 @@ GetOptions(
 );
 
 # declare global variables for script
-# both of these variables are used during CL install portion
+# both of these variables are used during the CL install portion
 # of script and their necessity should be reviewed during TECH-407
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
@@ -51,7 +51,7 @@ set_screen_perms();
 
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
-# build cpnat too ensure that '/var/cpanel/cpnat' has the correct IPs in it
+# build cpnat to ensure that '/var/cpanel/cpnat' has the correct IPs in it
 print "\nbuilding cpnat ";
 system_formatted("/usr/local/cpanel/scripts/build_cpnat");
 
@@ -166,10 +166,10 @@ exit;
 # list of subroutines for the script
 #
 # system_formatted() - takes a system call as an argument and uses open3() to make the syscall
-# add_motd() - appends all argumnets to '/etc/motd'
+# add_motd() - appends all arguments to '/etc/motd'
 # get_sysinfo() - populates %sysinfo hash with data
-# install_packages() - instals some useful yum packages
-# create_api_token() - make API call to creaate an API token with the 'all' acl and add the token to '/etc/motd'
+# install_packages() - installs some useful yum packages
+# create_api_token() - make API call to create an API token with the 'all' acl and add the token to '/etc/motd'
 # create_primary_account() - create 'cptest' cPanel acct w/ email address, db, and dbuser - then add info to '/etc/motd'
 # update_tweak_settings() - update tweak settings to allow remote domains and unregisteredomains
 # disable_cphulkd() - stop and disable cphulkd
@@ -330,7 +330,7 @@ sub print_help_and_exit {
     exit;
 }
 
-# script should only be ran once without force
+# script should only be run once without force
 # exit if it has been ran and force not passed
 # do nothing if force passed
 # create lock file otherwise
