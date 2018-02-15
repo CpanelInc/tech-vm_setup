@@ -27,6 +27,8 @@ GetOptions(
 # declare global variables for script
 # both of these variables are used during CL install portion
 # of script and their necessity should be reviewed during TECH-407
+my $VMS_LOG = '/var/log/vm_setup.log';
+
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
 
@@ -47,6 +49,8 @@ check_license();
 # we should check for the lock file and exit if force argument not passed right after checking for help
 # to ensure that no work is performed in this scenario
 handle_lock_file();
+
+create_vms_log_file();
 
 setup_resolv_conf();
 
@@ -251,6 +255,7 @@ sub print_formatted {
                 process_output($line);
             }
 
+            append_vms_log($line);
             if ($verbose) {
                 print $line;
             }
@@ -837,3 +842,23 @@ sub _check_for_failure {
     return 1;
 }
 
+# no arguments needed since $VMS_LOG is a global var
+# creates the file as a new file
+sub create_vms_log_file {
+    print "\nvm_setup logs to '$VMS_LOG'";
+
+    unlink $VMS_LOG;
+    _create_touch_file($VMS_LOG);
+    return 1;
+}
+
+# append a line to the log file
+sub append_vms_log {
+    my $line = shift;
+
+    open( my $fh, ">>", $VMS_LOG ) or die $!;
+    print $fh $line;
+    close $fh;
+
+    return 1;
+}
