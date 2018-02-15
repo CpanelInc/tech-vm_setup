@@ -40,6 +40,10 @@ if ($help) {
     print_help_and_exit();
 }
 
+# vm_setup depends on multiple cPanel api calls
+# if the license is invalid, we should immediately die
+check_license();
+
 # we should check for the lock file and exit if force argument not passed right after checking for help
 # to ensure that no work is performed in this scenario
 handle_lock_file();
@@ -176,6 +180,7 @@ exit;
 # restart_cpsrvd() - restarts cpsrvd
 #
 # print_help_and_exit() - ran if --help is passed - prints script usage/info and exits
+# check_license() - perform a cPanel license check and die if it does not succeed
 # handle_lock_file() - exit if lock file exists and --force is not passed, otherwise, create lock file
 # handle_additional_options() - the script user has option to run a cPanel update and check_cpanel_rpms.  This executes these processes if the user desires
 # clean_exit() - print some helpful output for the user before exiting
@@ -203,6 +208,8 @@ exit;
 # _get_ostype_and_version() - called by get_sysinfo() to populate %sysinfo hash with the ostype and osversion
 # _cpanel_getsysinfo() - called by get_sysinfo() to ensure that '/var/cpanel/sysinfo.config' is up to date
 # _cat_file() - takes filename as arg and mimics bash cat command
+# _check_license() - works much like system_formatted() but is only intended for the license check
+# _check_for_failure() - looks at output of the license check and dies if it fails
 #
 ##############  BEGIN SUBROUTINES ####################
 
@@ -779,3 +786,54 @@ sub _cat_file {
 
     return 1;
 }
+
+# perform a license check to ensure valid cPanel license
+sub check_license {
+
+    _check_license("/usr/local/cpanel/cpkeyclt");
+
+    return 1;
+}
+
+# works just like system_formatted(), but I split this out specifically for the license check
+sub _check_license {
+
+    my $cmd = shift;
+    my ( $pid, $r_fh );
+
+    eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
+    die "open3: $@\n" if $@;
+
+    my $sel = IO::Select->new();    # notify us of reads on on our FHs
+    $sel->add($r_fh);               # add the FH we are interested in
+    while ( my @ready = $sel->can_read ) {
+        foreach my $fh (@ready) {
+            my $line = <$fh>;
+            if ( not defined $line ) {    # EOF for FH
+                $sel->remove($fh);
+                next;
+            }
+
+            else {
+                _check_for_failure($line);
+            }
+        }
+    }
+
+    # wait on child to finish before proceeding
+    waitpid( $pid, 0 );
+
+    return 1;
+}
+
+# takes a line of output as an argument
+sub _check_for_failure {
+
+    my $line = shift;
+
+    # die if the license is not valid
+    die("cPanel license is not currently valid.\n") if ( $line =~ /Update Failed!/ );
+
+    return 1;
+}
+
