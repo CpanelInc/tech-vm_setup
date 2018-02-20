@@ -197,6 +197,9 @@ exit;
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
+# create_vms_log_file() - creates the scripts log file
+# append_vms_log() - appends a line (given as argument) to the scripts log file
+#
 #
 # process_output() - processes the output of syscalls passed to system_formatted()
 # print_formatted() - listens to read filehandle from syscall, and prints the output to STDOUT if verbose flag is used
@@ -853,6 +856,7 @@ sub create_vms_log_file {
 }
 
 # append a line to the log file
+# takes a line to append to the file as an argument
 sub append_vms_log {
     my $line = shift;
 
