@@ -250,6 +250,36 @@ sub _process_whmapi_output {
     return 0;
 }
 
+sub _process_uapi_output {
+
+    my @output = @_;
+    my $key;
+    my $value;
+    my $error;
+    my $i = 0;
+
+    foreach my $line (@output) {
+        if ($i) {
+            $error = $line;
+            chomp($error);
+            $i = 0;
+        }
+
+        if ( $line =~ /errors:/ ) {
+            $i = 1;
+        }
+
+        if ( $line =~ /status:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            if ( $value == 0 ) {
+                return "uapi call failed:  $error";
+            }
+        }
+    }
+
+    return 0;
+}
+
 # takes a line of output from the syscall as an argument
 # and checks for various results
 # this will be flushed out further in a later case
@@ -258,9 +288,18 @@ sub process_output {
 
     my @output = @_;
     my $cmd    = shift @output;
+    my $result;
 
     if ( $cmd =~ /whmapi1/ ) {
-        my $result = _process_whmapi_output(@output);
+        $result = _process_whmapi_output(@output);
+        if ( $result ne '0' ) {
+            print_command($cmd);
+            print_warn($result);
+        }
+    }
+
+    elsif ( $cmd =~ /uapi/ ) {
+        $result = _process_uapi_output(@output);
         if ( $result ne '0' ) {
             print_command($cmd);
             print_warn($result);
