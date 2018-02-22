@@ -317,11 +317,13 @@ sub print_formatted {
 
     my $cmd  = shift;
     my $r_fh = shift;
+    my $e_fh = shift;
 
     my @output = $cmd;
 
     my $sel = IO::Select->new();    # notify us of reads on on our FHs
-    $sel->add($r_fh);               # add the FH we are interested in
+    $sel->add($r_fh);               # add the STDOUT FH
+    $sel->add($e_fh);               # add the STDERR FH
     while ( my @ready = $sel->can_read ) {
         foreach my $fh (@ready) {
             my $line = <$fh>;
@@ -352,20 +354,29 @@ sub print_formatted {
 sub system_formatted {
 
     my $cmd = shift;
-    my ( $pid, $r_fh );
+    my ( $pid, $r_fh, $e_fh );
 
     append_vms_log("\nCommand:  $cmd\n");
     if ($verbose) {
         print_command($cmd);
     }
 
-    eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
+    eval { $pid = open3( undef, $r_fh, $e_fh, $cmd ); };
     die "open3: $@\n" if $@;
 
-    print_formatted( $cmd, $r_fh );
+    print_formatted( $cmd, $r_fh, $e_fh );
 
     # wait on child to finish before proceeding
     waitpid( $pid, 0 );
+
+    # process output for yum
+    if ( $cmd =~ /yum/ ) {
+        my $exit_status = $? >> 8;
+        if ( $exit_status && $exit_status != 0 ) {
+            print_command($cmd);
+            print_warn("Some yum modules may have failed to install, check log for detail");
+        }
+    }
 
     return 1;
 }
