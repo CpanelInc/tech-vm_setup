@@ -162,6 +162,8 @@ clean_exit();
 
 exit;
 
+# DOCUMENT CHANGES TO system_formatted(), print_formatted(), and process_output()
+
 ##############  END OF MAIN ##########################
 #
 # list of subroutines for the script
@@ -219,17 +221,50 @@ exit;
 #
 ##############  BEGIN SUBROUTINES ####################
 
+sub _process_whmapi_output {
+
+    my @output = @_;
+    my $key;
+    my $value;
+    my $reason;
+
+    foreach my $line (@output) {
+        if ( $line =~ /reason:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            $reason = $value;
+        }
+
+        if ( $line =~ /result:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            if ( $value == 0 ) {
+                return "whmapi call failed:  $reason";
+            }
+        }
+
+        if ( $line =~ /token:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            add_motd( "Token name - all_access: " . $value . "\n" );
+        }
+    }
+
+    return 0;
+}
+
 # takes a line of output from the syscall as an argument
 # and checks for various results
 # this will be flushed out further in a later case
 # as part of a feature request
 sub process_output {
 
-    my $line = shift;
+    my @output = @_;
+    my $cmd    = shift @output;
 
-    if ( $line =~ /token:/ ) {
-        ( my $key, my $token ) = split /:/, $line;
-        add_motd( "Token name - all_access: " . $token . "\n" );
+    if ( $cmd =~ /whmapi1/ ) {
+        my $result = _process_whmapi_output(@output);
+        if ( $result ne '0' ) {
+            print_command($cmd);
+            print_warn($result);
+        }
     }
 
     return 1;
@@ -241,7 +276,10 @@ sub process_output {
 # process_output() to look for certain restults
 sub print_formatted {
 
+    my $cmd  = shift;
     my $r_fh = shift;
+
+    my @output = $cmd;
 
     my $sel = IO::Select->new();    # notify us of reads on on our FHs
     $sel->add($r_fh);               # add the FH we are interested in
@@ -254,7 +292,7 @@ sub print_formatted {
             }
 
             else {
-                process_output($line);
+                push @output, $line;
             }
 
             append_vms_log($line);
@@ -263,6 +301,8 @@ sub print_formatted {
             }
         }
     }
+
+    process_output(@output);
 
     return 1;
 }
@@ -283,7 +323,7 @@ sub system_formatted {
     eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
     die "open3: $@\n" if $@;
 
-    print_formatted($r_fh);
+    print_formatted( $cmd, $r_fh );
 
     # wait on child to finish before proceeding
     waitpid( $pid, 0 );
