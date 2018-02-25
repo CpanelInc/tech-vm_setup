@@ -162,8 +162,6 @@ clean_exit();
 
 exit;
 
-# DOCUMENT CHANGES TO system_formatted(), print_formatted(), and process_output()
-
 ##############  END OF MAIN ##########################
 #
 # list of subroutines for the script
@@ -218,9 +216,15 @@ exit;
 # _cat_file() - takes filename as arg and mimics bash cat command
 # _check_license() - works much like system_formatted() but is only intended for the license check
 # _check_for_failure() - looks at output of the license check and dies if it fails
+# _process_whmapi_output() - called by process_output() and processes the output of whmapi1 calls to ensure the call completed successfully and to check for token output
+# _process_uapi_output() - called by process_output() and processes the output of UAPI calls to ensure the call copmleted successfully
 #
 ##############  BEGIN SUBROUTINES ####################
 
+# called by process_output() and processes the output of whmapi1 calls to ensure the call completed successfully and to check for token output
+# takes the output of a whmapi1 call as an argument (array)
+# returns 0 if the call succeeded
+# otherwise, it returns a string that contains the reason that the call failed
 sub _process_whmapi_output {
 
     my @output = @_;
@@ -250,6 +254,10 @@ sub _process_whmapi_output {
     return 0;
 }
 
+# called by process_output() and processes the output of UAPI calls to ensure the call copmleted successfully
+# takes the output of a UAPI call as an argument (array)
+# returns 0 if the call succeeds
+# otherwise, it returns a string that contains the reason that the call failed
 sub _process_uapi_output {
 
     my @output = @_;
@@ -280,10 +288,12 @@ sub _process_uapi_output {
     return 0;
 }
 
-# takes a line of output from the syscall as an argument
-# and checks for various results
-# this will be flushed out further in a later case
-# as part of a feature request
+# deterines if the command is a whmapi1 or UAPI call and calls the appropriate subroutine to handle it
+# takes two arguments
+# arg[0] = the command that was called
+# arg 2 = an array contianing the output of the call
+# return 0 if the command was an API call and it failed
+# otherwise, return 1
 sub process_output {
 
     my @output = @_;
@@ -304,16 +314,20 @@ sub process_output {
         if ( $result ne '0' ) {
             print_command($cmd);
             print_warn($result);
+            return 0;
         }
     }
 
     return 1;
 }
 
-# takes a read filehandle from system_formatted() as an argument
-# prints text to STDOUT if verbose flag is given
-# listens to the file handle for lines of text and sends them to
-# process_output() to look for certain restults
+# logs the output of the system call
+# and prints the output to STDOUT if --verbose was passed
+# takes 3 arguments
+# argument 1 is the command that was passed to system_formatted()
+# arguments 2 and 3 are file handles for where the system call was made
+# return 0 if the system call was an API call that failed
+# otherwise, return 1
 sub print_formatted {
 
     my $cmd  = shift;
@@ -349,9 +363,11 @@ sub print_formatted {
     return 1;
 }
 
-# takes a system call as an argument and uses open3() to process it
-# also call print_formatted() to so that we can process the output of the system call
-# and print the results to STDOUT if the verbose flag is used
+# takes a command to make a system call with as an argument
+# uses open3() to make the system call
+# if the call is a call to yum, check the return value of the call and warn if yum fails
+# return 0 if the command is an API call that fails
+# otherwise, return 1
 sub system_formatted {
 
     my $cmd = shift;
@@ -622,7 +638,7 @@ sub install_packages {
 
     # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
-    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ]");
+    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ] (this may take a couple minutes)");
     ensure_working_rpmdb();
     system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File');
 
@@ -756,6 +772,8 @@ sub create_api_token {
 
 # create the primary test account
 # and add one-liners to motd for access
+# if the whmapi1 call to create the primary account fails, and force is not passed
+# then we print a warning and fail since the rest of UAPI calls depend on this call to pass and should fail as well
 sub create_primary_account {
 
     my $rndpass;
