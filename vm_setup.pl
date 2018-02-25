@@ -10,8 +10,9 @@ use IO::Handle;
 use IO::Select;
 use String::Random;
 use IPC::Open3;
+use Term::ANSIColor qw(:constants);
 
-my $VERSION = '1.0.1';
+my $VERSION = '1.0.2';
 
 # declare variables for script options and handle them
 my ( $help, $verbose, $full, $fast, $force, $cltrue );
@@ -27,11 +28,15 @@ GetOptions(
 # declare global variables for script
 # both of these variables are used during the CL install portion
 # of script and their necessity should be reviewed during TECH-407
+my $VMS_LOG = '/var/log/vm_setup.log';
+
 my $InstPHPSelector = 0;
 my $InstCageFS      = 0;
 
 # print header
-print "\nVM Server Setup Script\n" . "Version: $VERSION\n" . "\n";
+print "\n";
+print_vms("VM Server Setup Script");
+print_vms("Version: $VERSION\n");
 
 # help option should be processed first to ensure that nothing is erroneously executed if this option is passed
 # converted this to a function to make main less clunky and it may be of use if we add more script arguments in the future
@@ -40,9 +45,15 @@ if ($help) {
     print_help_and_exit();
 }
 
+# vm_setup depends on multiple cPanel api calls
+# if the license is invalid, we should immediately die
+check_license();
+
 # we should check for the lock file and exit if force argument not passed right after checking for help
 # to ensure that no work is performed in this scenario
 handle_lock_file();
+
+create_vms_log_file();
 
 setup_resolv_conf();
 
@@ -52,7 +63,7 @@ set_screen_perms();
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
 # build cpnat to ensure that '/var/cpanel/cpnat' has the correct IPs in it
-print "\nbuilding cpnat ";
+print_vms("Building cpnat");
 system_formatted("/usr/local/cpanel/scripts/build_cpnat");
 
 # use a hash for system information
@@ -73,7 +84,7 @@ my $natip    = $sysinfo{'natip'};
 my $ip       = $sysinfo{'ip'};
 
 # set hostname
-print "\nsetting hostname to $hostname";
+print_vms("Setting hostname to $hostname");
 
 # use whmapi1 to set hostname so that we get a return value
 # this will be important when we start processing output to ensure these calls succeed
@@ -108,16 +119,6 @@ disable_cphulkd();
 # this takes user input if necessary and executes these two processes if desired
 handle_additional_options();
 
-# I do not really see a purpose for doing this in this script and on our test vms
-# especially since most of the API calls in this script check the license anyway
-# and fail if it is not valid
-# commenting it out for now and will revisit if it becomes an issue
-# one thought if it does prove to be necessary is to change the order so that it gets
-# ran before any of the API calls
-# update cplicense
-# print "\nupdating cpanel license  ";
-# system_formatted('/usr/local/cpanel/cpkeyclt');
-
 # install CloudLinux
 # this logic should be moved to a subroutine and
 # it will be revisited in TECH-407
@@ -127,7 +128,7 @@ handle_additional_options();
 # # grep ^rpm_dist /var/cpanel/sysinfo.config
 # rpm_dist=cloudlinux
 if ( not $force and $sysinfo{'ostype'} eq "cloudlinux" ) {
-    print "\nCloudLinux already detected, no need to install CloudLinux.  ";
+    print_warn("CloudLinux already detected, no need to install CloudLinux\n");
 
     # No need to install CloudLinux. It's already installed
     $cltrue = 0;
@@ -136,20 +137,20 @@ if ($cltrue) {
 
     # Remove /var/cpanel/nocloudlinux touch file (if it exists)
     if ( -e ("/var/cpanel/nocloudlinux") ) {
-        print "\nremoving /var/cpanel/nocloudlinux touch file  ";
+        print_vms("Removing /var/cpanel/nocloudlinux touch file");
         unlink("/var/cpanel/nocloudlinux");
     }
-    print "\ndownloading cldeploy shell file  ";
+    print_vms("Downloading cldeploy shell file");
     system_formatted("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
-    print "\nexecuting cldeploy shell file (Note: this runs a upcp and can take time)  ";
+    print_vms("Executing cldeploy shell file (Note: this runs a upcp and can take time)");
     my $clDeploy = qx[ echo | sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59 ; echo ];
-    print "\ninstalling CageFS  ";
+    print_vms("Installing CageFS");
     system_formatted("echo | yum -y install cagefs");
-    print "\ninitializing CageFS  ";
+    print_vms("Initializing CageFS");
     system_formatted("echo | cagefsctl --init");
-    print "\ninstalling PHP Selector  ";
+    print_vms("Installing PHP Selector");
     system_formatted("echo | yum -y groupinstall alt-php");
-    print "\nupdating CageFS/LVE Manager  ";
+    print_vms("Updating CageFS/LVE Manager");
     system_formatted("echo | yum -y update cagefs lvemanager");
 }
 
@@ -160,6 +161,8 @@ restart_cpsrvd();
 clean_exit();
 
 exit;
+
+# DOCUMENT CHANGES TO system_formatted(), print_formatted(), and process_output()
 
 ##############  END OF MAIN ##########################
 #
@@ -176,6 +179,7 @@ exit;
 # restart_cpsrvd() - restarts cpsrvd
 #
 # print_help_and_exit() - ran if --help is passed - prints script usage/info and exits
+# check_license() - perform a cPanel license check and die if it does not succeed
 # handle_lock_file() - exit if lock file exists and --force is not passed, otherwise, create lock file
 # handle_additional_options() - the script user has option to run a cPanel update and check_cpanel_rpms.  This executes these processes if the user desires
 # clean_exit() - print some helpful output for the user before exiting
@@ -188,12 +192,21 @@ exit;
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
+# create_vms_log_file() - creates the scripts log file
+# append_vms_log() - appends a line (given as argument) to the scripts log file
+#
 #
 # process_output() - processes the output of syscalls passed to system_formatted()
 # print_formatted() - listens to read filehandle from syscall, and prints the output to STDOUT if verbose flag is used
 # set_screen_perms() - ensure 'screen' binary has proper ownership/permissions
 # ensure_working_rpmdb() - make sure that rpmdb is in working order before making yum syscall
 # get_answer() - determines answer from user regarding additional options.  This subroutine takes a prompt string for STDOUT to the user and returns 'y' or 'n' depending on their answer
+#
+# print_vms() - color formatted output to make script output look better
+# print_warn() - color formatted output to make script output look better
+# print_info() - color formatted output to make script output look better
+# print_question() - color formatted output to make script output look better
+# print_command() - color formatted output to make script output look better
 #
 # _gen_pw() - returns a 25 char rand pw
 # _stdin() - returns a string taken from STDIN
@@ -203,8 +216,69 @@ exit;
 # _get_ostype_and_version() - called by get_sysinfo() to populate %sysinfo hash with the ostype and osversion
 # _cpanel_getsysinfo() - called by get_sysinfo() to ensure that '/var/cpanel/sysinfo.config' is up to date
 # _cat_file() - takes filename as arg and mimics bash cat command
+# _check_license() - works much like system_formatted() but is only intended for the license check
+# _check_for_failure() - looks at output of the license check and dies if it fails
 #
 ##############  BEGIN SUBROUTINES ####################
+
+sub _process_whmapi_output {
+
+    my @output = @_;
+    my $key;
+    my $value;
+    my $reason;
+
+    foreach my $line (@output) {
+        if ( $line =~ /reason:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            $reason = $value;
+        }
+
+        if ( $line =~ /result:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            if ( $value == 0 ) {
+                return "whmapi call failed:  $reason";
+            }
+        }
+
+        if ( $line =~ /^\s*token:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            add_motd( "Token name - all_access: " . $value . "\n" );
+        }
+    }
+
+    return 0;
+}
+
+sub _process_uapi_output {
+
+    my @output = @_;
+    my $key;
+    my $value;
+    my $error;
+    my $i = 0;
+
+    foreach my $line (@output) {
+        if ($i) {
+            $error = $line;
+            chomp($error);
+            $i = 0;
+        }
+
+        if ( $line =~ /errors:/ ) {
+            $i = 1;
+        }
+
+        if ( $line =~ /status:/ ) {
+            ( $key, $value ) = split /:/, $line;
+            if ( $value == 0 ) {
+                return "uapi call failed:  $error";
+            }
+        }
+    }
+
+    return 0;
+}
 
 # takes a line of output from the syscall as an argument
 # and checks for various results
@@ -212,11 +286,25 @@ exit;
 # as part of a feature request
 sub process_output {
 
-    my $line = shift;
+    my @output = @_;
+    my $cmd    = shift @output;
+    my $result;
 
-    if ( $line =~ /token:/ ) {
-        ( my $key, my $token ) = split /:/, $line;
-        add_motd( "Token name - all_access: " . $token . "\n" );
+    if ( $cmd =~ /whmapi1/ ) {
+        $result = _process_whmapi_output(@output);
+        if ( $result ne '0' ) {
+            print_command($cmd);
+            print_warn($result);
+            return 0;
+        }
+    }
+
+    elsif ( $cmd =~ /uapi/ ) {
+        $result = _process_uapi_output(@output);
+        if ( $result ne '0' ) {
+            print_command($cmd);
+            print_warn($result);
+        }
     }
 
     return 1;
@@ -228,10 +316,15 @@ sub process_output {
 # process_output() to look for certain restults
 sub print_formatted {
 
+    my $cmd  = shift;
     my $r_fh = shift;
+    my $e_fh = shift;
+
+    my @output = $cmd;
 
     my $sel = IO::Select->new();    # notify us of reads on on our FHs
-    $sel->add($r_fh);               # add the FH we are interested in
+    $sel->add($r_fh);               # add the STDOUT FH
+    $sel->add($e_fh);               # add the STDERR FH
     while ( my @ready = $sel->can_read ) {
         foreach my $fh (@ready) {
             my $line = <$fh>;
@@ -241,14 +334,17 @@ sub print_formatted {
             }
 
             else {
-                process_output($line);
+                push @output, $line;
             }
 
+            append_vms_log($line);
             if ($verbose) {
                 print $line;
             }
         }
     }
+
+    return 0 if not process_output(@output);
 
     return 1;
 }
@@ -259,17 +355,40 @@ sub print_formatted {
 sub system_formatted {
 
     my $cmd = shift;
-    my ( $pid, $r_fh );
+    my ( $pid, $r_fh, $e_fh );
+    my $retval = 1;
 
-    eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
+    append_vms_log("\nCommand:  $cmd\n");
+    if ($verbose) {
+        print_command($cmd);
+    }
+
+    eval { $pid = open3( undef, $r_fh, $e_fh, $cmd ); };
     die "open3: $@\n" if $@;
 
-    print_formatted($r_fh);
+    if ( not print_formatted( $cmd, $r_fh, $e_fh ) ) {
+        $retval = 0;
+    }
 
     # wait on child to finish before proceeding
     waitpid( $pid, 0 );
 
-    return 1;
+    # process output for yum
+    if ( $cmd =~ /yum/ ) {
+        my $exit_status = $? >> 8;
+        if ( $exit_status && $exit_status != 0 ) {
+            print_command($cmd);
+            print_warn("Some yum modules may have failed to install, check log for detail");
+        }
+    }
+
+    if ( not $retval ) {
+        return 0;
+    }
+
+    else {
+        return 1;
+    }
 }
 
 # use String::Random to generate 25 digit password
@@ -337,16 +456,16 @@ sub print_help_and_exit {
 sub handle_lock_file {
     if ( -e "/root/vmsetup.lock" ) {
         if ( !$force ) {
-            print "/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...\n";
+            print_warn("/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...");
             exit;
         }
         else {
-            print "/root/vmsetup.lock exists. --force passed. Ignoring...\n";
+            print_info("/root/vmsetup.lock exists. --force passed. Ignoring...");
         }
     }
     else {
         # create lock file
-        print "\ncreating lock file ";
+        print_vms("creating lock file");
         _create_touch_file('/root/vmsetup.lock');
     }
     return 1;
@@ -363,7 +482,7 @@ sub _create_touch_file {
 
 # recreate resolv.conf using cPanel resolvers
 sub setup_resolv_conf {
-    print "\nadding resolvers ";
+    print_vms("Adding resolvers");
     open( my $etc_resolv_conf, '>', '/etc/resolv.conf' )
       or die $!;
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
@@ -503,7 +622,7 @@ sub install_packages {
 
     # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
-    print "\ninstalling utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ]  ";
+    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ]");
     ensure_working_rpmdb();
     system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File');
 
@@ -533,7 +652,7 @@ sub configure_sysconfig_network {
     my $hn = shift;
 
     # set /etc/sysconfig/network
-    print "\nupdating /etc/sysconfig/network  ";
+    print_vms("Updating /etc/sysconfig/network");
     open( my $etc_network, '>', '/etc/sysconfig/network' )
       or die $!;
     print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hn\n";
@@ -546,7 +665,7 @@ sub configure_mainip {
 
     my $nat = shift;
 
-    print "\nupdating /var/cpanel/mainip  ";
+    print_vms("Updating /var/cpanel/mainip");
     open( my $fh, '>', '/var/cpanel/mainip' )
       or die $!;
     print $fh "$nat";
@@ -569,7 +688,7 @@ sub configure_wwwacct_conf {
     my $nat = shift;
 
     # correct wwwacct.conf
-    print "\ncorrecting /etc/wwwacct.conf  ";
+    print_vms("Correcting /etc/wwwacct.conf");
     open( my $fh, '>', '/etc/wwwacct.conf' )
       or die $!;
     print $fh "HOST $hn\n";
@@ -602,7 +721,7 @@ sub configure_etc_hosts {
     my $local_ip = shift;
 
     # corrent /etc/hosts
-    print "\ncorrecting /etc/hosts  ";
+    print_vms("Correcting /etc/hosts");
     open( my $fh, '>', '/etc/hosts' )
       or die $!;
     print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
@@ -615,7 +734,7 @@ sub configure_etc_hosts {
 # ensure proper screen ownership/permissions
 sub set_screen_perms {
 
-    print "\nfixing screen perms  ";
+    print_vms("Fixing screen perms");
     system_formatted('/bin/rpm --setugids screen && /bin/rpm --setperms screen');
     return 1;
 }
@@ -629,7 +748,7 @@ sub ensure_working_rpmdb {
 # this creates an api token and adds it to '/etc/motd'
 sub create_api_token {
 
-    print "\ncreating api token";
+    print_vms("Creating api token");
     system_formatted('/usr/local/cpanel/bin/whmapi1 api_token_create token_name=all_access acl-1=all');
 
     return 1;
@@ -644,26 +763,30 @@ sub create_primary_account {
     add_motd( "one-liner for access to WHM root access:\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=root service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
 
     # create test account
-    print "\ncreating test account - cptest  ";
+    print_vms("Creating test account - cptest");
     $rndpass = _genpw();
-    system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" );
+    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not $force ) {
+        print_warn(q[Failed to create primary account (cptest.tld), skipping additional configurations for the account]);
+        return 1;
+    }
+
     add_motd( "one-liner for access to cPanel user: cptest\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n" );
 
-    print "\ncreating test email - testing\@cptest.tld  ";
+    print_vms("Creating test email - testing\@cptest.tld");
     $rndpass = _genpw();
     system_formatted( "/usr/local/cpanel/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass );
     add_motd( "one-liner for access to test email account: testing\@cptest.tld\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=testing@cptest.tld service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n" );
 
-    print "\ncreating test database - cptest_testdb  ";
+    print_vms("Creating test database - cptest_testdb");
     system_formatted("/usr/local/cpanel/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
 
-    print "\ncreating test db user - cptest_testuser  ";
+    print_vms("Creating test db user - cptest_testuser");
     $rndpass = _genpw();
     system_formatted( "/usr/local/cpanel/bin/uapi --user=cptest Mysql create_user name=cptest_testuser password=" . $rndpass );
     add_motd("mysql test user:  username:  cptest_testuser");
     add_motd("                  password:  $rndpass\n");
 
-    print "\nadding all privs for cptest_testuser to cptest_testdb  ";
+    print_vms("Adding all privs for cptest_testuser to cptest_testdb");
     system_formatted("/usr/local/cpanel/bin/uapi --user=cptest Mysql set_privileges_on_database user=cptest_testuser database=cptest_testdb privileges='ALL PRIVILEGES'");
 
     return 1;
@@ -672,7 +795,7 @@ sub create_primary_account {
 # update tweak settings to allow creation of nonexistent addon domains
 sub update_tweak_settings {
 
-    print "\nUpdating tweak settings (cpanel.config)  ";
+    print_vms("Updating tweak settings (cpanel.config)");
     system_formatted("/usr/local/cpanel/bin/whmapi1 set_tweaksetting key=allowremotedomains value=1");
     system_formatted("/usr/local/cpanel/bin/whmapi1 set_tweaksetting key=allowunregistereddomains value=1");
     return 1;
@@ -681,6 +804,7 @@ sub update_tweak_settings {
 # append aliases directly into STDIN upon login
 sub add_custom_bashrc_to_bash_profile {
 
+    print_vms("Updating '/root/.bash_profile with help aliases");
     my $txt = q[ source /dev/stdin <<< "$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)" ];
     open( my $fh, ">>", '/root/.bash_profile' ) or die $!;
     print $fh "$txt\n";
@@ -692,7 +816,7 @@ sub add_custom_bashrc_to_bash_profile {
 # stop and disable cphulkd
 sub disable_cphulkd {
 
-    print "\ndisabling cphulkd  ";
+    print_vms("Disabling cphulkd");
     system_formatted('/usr/local/cpanel/scripts/restartsrv_cphulkd');
     system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
 
@@ -706,14 +830,14 @@ sub handle_additional_options {
     # upcp first
     my $answer = get_answer("would you like to run upcp now? [n]: ");
     if ( $answer eq "y" ) {
-        print "\nrunning upcp ";
+        print_vms("Running upcp");
         system_formatted('/scripts/upcp');
     }
 
     # check_cpanel_rpms second
-    $answer = get_answer("\nwould you like to run check_cpanel_rpms now? [n]: ");
+    $answer = get_answer("would you like to run check_cpanel_rpms now? [n]: ");
     if ( $answer eq "y" ) {
-        print "\nrunning check_cpanel_rpms  ";
+        print_vms("Running check_cpanel_rpms");
         system_formatted('/scripts/check_cpanel_rpms --fix');
     }
 
@@ -733,7 +857,7 @@ sub get_answer {
         return 'y';
     }
     else {
-        print $question;
+        print_question($question);
         return _stdin();
     }
 
@@ -743,7 +867,7 @@ sub get_answer {
 
 sub restart_cpsrvd {
 
-    print "\nRestarting cpsvrd  ";
+    print_vms("Restarting cpsvrd");
     system_formatted("/usr/local/cpanel/scripts/restartsrv_cpsrvd");
     return 1;
 }
@@ -751,14 +875,17 @@ sub restart_cpsrvd {
 # exit cleanly
 sub clean_exit {
 
-    print "\nSetup complete\n\n";
-    _cat_file('/etc/motd');
+    print "\n";
+    print_vms("Setup complete\n");
+
+    # this is ugly and not helpful in regards to script output
+    # _cat_file('/etc/motd');
     print "\n";
     if ($cltrue) {
-        print "\n\nCloudLinux installed! A reboot is required!\n\n";
+        print_info("CloudLinux installed! A reboot is required!\n");
     }
     else {
-        print "\n\nYou should log out and back in.\n\n";
+        print_info("You should log out and back in.\n");
     }
 
     exit;
@@ -777,5 +904,112 @@ sub _cat_file {
 
     close $fh;
 
+    return 1;
+}
+
+# perform a license check to ensure valid cPanel license
+sub check_license {
+
+    _check_license("/usr/local/cpanel/cpkeyclt");
+
+    return 1;
+}
+
+# works just like system_formatted(), but I split this out specifically for the license check
+sub _check_license {
+
+    my $cmd = shift;
+    my ( $pid, $r_fh );
+
+    eval { $pid = open3( undef, $r_fh, '>&STDERR', $cmd ); };
+    die "open3: $@\n" if $@;
+
+    my $sel = IO::Select->new();    # notify us of reads on on our FHs
+    $sel->add($r_fh);               # add the FH we are interested in
+    while ( my @ready = $sel->can_read ) {
+        foreach my $fh (@ready) {
+            my $line = <$fh>;
+            if ( not defined $line ) {    # EOF for FH
+                $sel->remove($fh);
+                next;
+            }
+
+            else {
+                _check_for_failure($line);
+            }
+        }
+    }
+
+    # wait on child to finish before proceeding
+    waitpid( $pid, 0 );
+
+    return 1;
+}
+
+# takes a line of output as an argument
+sub _check_for_failure {
+
+    my $line = shift;
+
+    # die if the license is not valid
+    die("cPanel license is not currently valid.\n") if ( $line =~ /Update Failed!/ );
+
+    return 1;
+}
+
+# no arguments needed since $VMS_LOG is a global var
+# creates the file as a new file
+sub create_vms_log_file {
+    print_info("vm_setup logs to '$VMS_LOG'");
+
+    unlink $VMS_LOG;
+    _create_touch_file($VMS_LOG);
+    return 1;
+}
+
+# append a line to the log file
+# takes a line to append to the file as an argument
+sub append_vms_log {
+    my $line = shift;
+
+    open( my $fh, ">>", $VMS_LOG ) or die $!;
+    print $fh $line;
+    close $fh;
+
+    return 1;
+}
+
+sub print_vms {
+    my $text = shift;
+    print BOLD BRIGHT_BLUE ON_BLACK '[VMS] * ';
+    print BOLD WHITE ON_BLACK "$text\n";
+    return 1;
+}
+
+sub print_warn {
+    my $text = shift;
+    print BOLD RED ON_BLACK '[WARN] * ';
+    print BOLD WHITE ON_BLACK "$text\n";
+    return 1;
+}
+
+sub print_info {
+    my $text = shift;
+    print BOLD GREEN ON_BLACK '[INFO] * ';
+    print BOLD WHITE ON_BLACK "$text\n";
+    return 1;
+}
+
+sub print_question {
+    my $text = shift;
+    print BOLD CYAN ON_BLACK '[QUESTION] * ';
+    print BOLD WHITE ON_BLACK "$text";
+    return 1;
+}
+
+sub print_command {
+    my $text = shift;
+    print BOLD BRIGHT_YELLOW ON_BLACK '[COMMAND] * ';
+    print BOLD WHITE ON_BLACK "$text\n";
     return 1;
 }
