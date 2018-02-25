@@ -12,7 +12,7 @@ use String::Random;
 use IPC::Open3;
 use Term::ANSIColor qw(:constants);
 
-my $VERSION = '1.0.1';
+my $VERSION = '1.0.2';
 
 # declare variables for script options and hanle them
 my ( $help, $verbose, $full, $fast, $force, $cltrue );
@@ -877,7 +877,9 @@ sub clean_exit {
 
     print "\n";
     print_vms("Setup complete\n");
-    _cat_file('/etc/motd');
+
+    # this is ugly and not helpful in regards to script output
+    # _cat_file('/etc/motd');
     print "\n";
     if ($cltrue) {
         print_info("CloudLinux installed! A reboot is required!\n");
