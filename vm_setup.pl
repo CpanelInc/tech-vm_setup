@@ -241,7 +241,7 @@ sub _process_whmapi_output {
             }
         }
 
-        if ( $line =~ /token:/ ) {
+        if ( $line =~ /^\s*token:/ ) {
             ( $key, $value ) = split /:/, $line;
             add_motd( "Token name - all_access: " . $value . "\n" );
         }
@@ -295,6 +295,7 @@ sub process_output {
         if ( $result ne '0' ) {
             print_command($cmd);
             print_warn($result);
+            return 0;
         }
     }
 
@@ -343,7 +344,7 @@ sub print_formatted {
         }
     }
 
-    process_output(@output);
+    return 0 if not process_output(@output);
 
     return 1;
 }
@@ -355,6 +356,7 @@ sub system_formatted {
 
     my $cmd = shift;
     my ( $pid, $r_fh, $e_fh );
+    my $retval = 1;
 
     append_vms_log("\nCommand:  $cmd\n");
     if ($verbose) {
@@ -364,7 +366,9 @@ sub system_formatted {
     eval { $pid = open3( undef, $r_fh, $e_fh, $cmd ); };
     die "open3: $@\n" if $@;
 
-    print_formatted( $cmd, $r_fh, $e_fh );
+    if ( not print_formatted( $cmd, $r_fh, $e_fh ) ) {
+        $retval = 0;
+    }
 
     # wait on child to finish before proceeding
     waitpid( $pid, 0 );
@@ -378,7 +382,13 @@ sub system_formatted {
         }
     }
 
-    return 1;
+    if ( not $retval ) {
+        return 0;
+    }
+
+    else {
+        return 1;
+    }
 }
 
 # use String::Random to generate 25 digit password
@@ -755,7 +765,11 @@ sub create_primary_account {
     # create test account
     print_vms("Creating test account - cptest");
     $rndpass = _genpw();
-    system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" );
+    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not $force ) {
+        print_warn(q[Failed to create primary account (cptest.tld), skipping additional configurations for the account]);
+        return 1;
+    }
+
     add_motd( "one-liner for access to cPanel user: cptest\n", q(IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=cptest service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n" );
 
     print_vms("Creating test email - testing\@cptest.tld");
