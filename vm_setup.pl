@@ -12,6 +12,9 @@ use String::Random;
 use IPC::Open3;
 use Term::ANSIColor qw(:constants);
 
+# reset colors to default when done
+$Term::ANSIColor::AUTORESET = 1;
+
 my $VERSION = '1.0.2';
 
 # declare variables for script options and handle them
