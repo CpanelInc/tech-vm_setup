@@ -110,6 +110,9 @@ add_custom_bashrc_to_bash_profile();
 # leaving for now but will need to be reevaluated in later on
 local $ENV{'REMOTE_USER'} = 'root';
 
+# ensure mysql is running and accessible before creating account
+set_local_mysql_root_password();
+
 # header message for '/etc/motd' placed here to ensure it is added before anything else
 add_motd("\n\nVM Setup Script created the following test accounts:\n");
 
@@ -1043,6 +1046,15 @@ sub append_history_options_to_bashrc {
     print $fh "export HISTFILESIZE= \n";
     print $fh "export HISTSIZE=\n";
     close $fh;
+
+    return 1;
+}
+
+sub set_local_mysql_root_password {
+
+    print_vms("Setting new password for mysql");
+    my $pw = _genpw();
+    system_formatted("/usr/local/cpanel/bin/whmapi1 set_local_mysql_root_password password=$pw");
 
     return 1;
 }
