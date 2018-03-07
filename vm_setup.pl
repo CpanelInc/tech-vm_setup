@@ -452,6 +452,7 @@ sub print_help_and_exit {
     print "--verbose: pretty self explanatory\n";
     print "--full: Passes yes to all optional setup functions\n";
     print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
+    print "--skipyum:  Skips installing yum packages\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
     print "- Installs common/useful packages\n";
@@ -460,12 +461,12 @@ sub print_help_and_exit {
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
     print "- Fixes screen permissions\n";
-
-    # print "- Runs cpkeyclt\n";
+    print "- Sets local mysql password to ensure mysql access\n";
     print "- Creates test account (with email and database)\n";
     print "- Disables cphulkd\n";
     print "- Creates api key\n";
     print "- Updates motd\n";
+    print "- Sets unlimited bash history\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";

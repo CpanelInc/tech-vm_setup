@@ -5,34 +5,32 @@ or, create a feature request under "Issues"
 
 Usage: perl vm_setup.pl [options]
 
-Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. 
+Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. 
 
 Options: 
-
-   --force: Ignores previous run check.
-   --fast: Skips all optional setup functions.
-   --full: Passes yes to all optional setup functions.
-   --installcl: Installs CloudLinux (can take a while and requires reboot).
-   --verbose: Provides additional output
+-------------- 
+--force: Ignores previous run check
+--fast: Skips all optional setup functions
+--verbose: pretty self explanatory
+--full: Passes yes to all optional setup functions
+--installcl: Installs CloudLinux(can take a while and requires reboot)
+--skipyum:  Skips installing yum packages
 
 Full list of things this does: 
-
-   Installs common packages
-   Sets hostname
-   Sets resolvers
-   Builds/updates /var/cpanel/cpnat
-   Updates /var/cpanel/cpanel.config (Tweak Settings)
-   Performs basic setup wizard
-   Fixes /etc/hosts
-   Fixes screen permissions
-   Creates test account
-   Disables cphulkd
-   Creates access hash
-   Updates motd
-   Creates /root/.bashrc with helpful aliases
-   Runs upcp (optional)
-   Runs check_cpanel_rpms --fix (optional)
-   Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)
-   Installs Task::Cpanel::Core (optional)
-
-
+-------------- 
+- Installs common/useful packages
+- Sets hostname
+- Updates /var/cpanel/cpanel.config (Tweak Settings)
+- Performs basic setup wizard
+- Fixes /etc/hosts
+- Fixes screen permissions
+- Sets local mysql password to ensure mysql access
+- Creates test account (with email and database)
+- Disables cphulkd
+- Creates api key
+- Updates motd
+- Sets unlimited bash history
+- Creates /root/.bash_profile with helpful aliases
+- Runs upcp (optional)
+- Runs check_cpanel_rpms --fix (optional)
+- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)
