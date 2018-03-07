@@ -102,6 +102,7 @@ configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
 configure_etc_hosts( $hostname, $ip );
 
+append_history_options_to_bashrc();
 add_custom_bashrc_to_bash_profile();
 
 # set env variable
@@ -1032,5 +1033,17 @@ sub print_command {
     my $text = shift;
     print BOLD BRIGHT_YELLOW ON_BLACK '[COMMAND] * ';
     print BOLD WHITE ON_BLACK "$text\n";
+    return 1;
+}
+
+# DOCUMENT SUBROUTINES BELOW THIS LINE
+
+sub append_history_options_to_bashrc {
+
+    open( my $fh, ">>", '/root/.bashrc' ) or die $!;
+    print $fh "export HISTFILESIZE= \n";
+    print $fh "export HISTSIZE=\n";
+    close $fh;
+
     return 1;
 }
