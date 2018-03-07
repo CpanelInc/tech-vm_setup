@@ -18,7 +18,7 @@ $Term::ANSIColor::AUTORESET = 1;
 my $VERSION = '1.0.2';
 
 # declare variables for script options and handle them
-my ( $help, $verbose, $full, $fast, $force, $cltrue );
+my ( $help, $verbose, $full, $fast, $force, $cltrue, $skipyum );
 GetOptions(
     "help"      => \$help,
     "verbose"   => \$verbose,
@@ -26,6 +26,7 @@ GetOptions(
     "fast"      => \$fast,
     "force"     => \$force,
     "installcl" => \$cltrue,
+    "skipyum"   => \$skipyum,
 );
 
 # declare global variables for script
@@ -642,6 +643,12 @@ sub _cpanel_gensysinfo {
 
 # verifies the integrity of the rpmdb and install some useful yum packages
 sub install_packages {
+
+    # do not install packages if skipyum option is passed
+    if ($skipyum) {
+        print_info("skipyum option passed, no packages were installed");
+        return 1;
+    }
 
     # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
