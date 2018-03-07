@@ -15,7 +15,7 @@ use Term::ANSIColor qw(:constants);
 # reset colors to default when done
 $Term::ANSIColor::AUTORESET = 1;
 
-my $VERSION = '1.0.2';
+my $VERSION = '1.0.3';
 
 # declare variables for script options and handle them
 my ( $help, $verbose, $full, $fast, $force, $cltrue, $skipyum );
@@ -178,6 +178,7 @@ exit;
 # add_motd() - appends all arguments to '/etc/motd'
 # get_sysinfo() - populates %sysinfo hash with data
 # install_packages() - installs some useful yum packages
+# set_local_mysql_root_password() - sets the local root password for mysql which ensures that mysql is running and we have access to it
 # create_api_token() - make API call to create an API token with the 'all' acl and add the token to '/etc/motd'
 # create_primary_account() - create 'cptest' cPanel acct w/ email address, db, and dbuser - then add info to '/etc/motd'
 # update_tweak_settings() - update tweak settings to allow remote domains and unregisteredomains
@@ -198,6 +199,7 @@ exit;
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
+# append_history_options_to_bashrc() - append options to '/root/.bashrc' so that we have unlimited bash history
 # create_vms_log_file() - creates the scripts log file
 # append_vms_log() - appends a line (given as argument) to the scripts log file
 #
@@ -1046,8 +1048,7 @@ sub print_command {
     return 1;
 }
 
-# DOCUMENT SUBROUTINES BELOW THIS LINE
-
+# adds two options to '/root/.bashrc' to allow for unlimited bash history
 sub append_history_options_to_bashrc {
 
     open( my $fh, ">>", '/root/.bashrc' ) or die $!;
@@ -1058,6 +1059,8 @@ sub append_history_options_to_bashrc {
     return 1;
 }
 
+# resets the mysql root password to a random password
+# this also ensure that mysql is running and that we have access to it
 sub set_local_mysql_root_password {
 
     print_vms("Setting new password for mysql");
