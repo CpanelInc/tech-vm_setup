@@ -839,8 +839,7 @@ sub add_custom_bashrc_to_bash_profile {
 sub disable_cphulkd {
 
     print_vms("Disabling cphulkd");
-    system_formatted('/usr/local/cpanel/scripts/restartsrv_cphulkd');
-    system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
+    system_formatted('/usr/local/cpanel/bin/whmapi1 disable_cphulk');
 
     return 1;
 }
