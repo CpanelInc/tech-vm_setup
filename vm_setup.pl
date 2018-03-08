@@ -15,10 +15,10 @@ use Term::ANSIColor qw(:constants);
 # reset colors to default when done
 $Term::ANSIColor::AUTORESET = 1;
 
-my $VERSION = '1.0.2';
+my $VERSION = '1.0.3';
 
 # declare variables for script options and handle them
-my ( $help, $verbose, $full, $fast, $force, $cltrue );
+my ( $help, $verbose, $full, $fast, $force, $cltrue, $skipyum );
 GetOptions(
     "help"      => \$help,
     "verbose"   => \$verbose,
@@ -26,6 +26,7 @@ GetOptions(
     "fast"      => \$fast,
     "force"     => \$force,
     "installcl" => \$cltrue,
+    "skipyum"   => \$skipyum,
 );
 
 # declare global variables for script
@@ -102,12 +103,16 @@ configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
 configure_etc_hosts( $hostname, $ip );
 
+append_history_options_to_bashrc();
 add_custom_bashrc_to_bash_profile();
 
 # set env variable
 # I am not entirely sure what we need this for or if it is even needed
 # leaving for now but will need to be reevaluated in later on
 local $ENV{'REMOTE_USER'} = 'root';
+
+# ensure mysql is running and accessible before creating account
+set_local_mysql_root_password();
 
 # header message for '/etc/motd' placed here to ensure it is added before anything else
 add_motd("\n\nVM Setup Script created the following test accounts:\n");
@@ -173,6 +178,7 @@ exit;
 # add_motd() - appends all arguments to '/etc/motd'
 # get_sysinfo() - populates %sysinfo hash with data
 # install_packages() - installs some useful yum packages
+# set_local_mysql_root_password() - sets the local root password for mysql which ensures that mysql is running and we have access to it
 # create_api_token() - make API call to create an API token with the 'all' acl and add the token to '/etc/motd'
 # create_primary_account() - create 'cptest' cPanel acct w/ email address, db, and dbuser - then add info to '/etc/motd'
 # update_tweak_settings() - update tweak settings to allow remote domains and unregisteredomains
@@ -193,6 +199,7 @@ exit;
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
+# append_history_options_to_bashrc() - append options to '/root/.bashrc' so that we have unlimited bash history
 # create_vms_log_file() - creates the scripts log file
 # append_vms_log() - appends a line (given as argument) to the scripts log file
 #
@@ -447,6 +454,7 @@ sub print_help_and_exit {
     print "--verbose: pretty self explanatory\n";
     print "--full: Passes yes to all optional setup functions\n";
     print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
+    print "--skipyum:  Skips installing yum packages\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
     print "- Installs common/useful packages\n";
@@ -455,12 +463,12 @@ sub print_help_and_exit {
     print "- Performs basic setup wizard\n";
     print "- Fixes /etc/hosts\n";
     print "- Fixes screen permissions\n";
-
-    # print "- Runs cpkeyclt\n";
+    print "- Sets local mysql password to ensure mysql access\n";
     print "- Creates test account (with email and database)\n";
     print "- Disables cphulkd\n";
     print "- Creates api key\n";
     print "- Updates motd\n";
+    print "- Sets unlimited bash history\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
     print "- Runs upcp (optional)\n";
     print "- Runs check_cpanel_rpms --fix (optional)\n";
@@ -639,11 +647,17 @@ sub _cpanel_gensysinfo {
 # verifies the integrity of the rpmdb and install some useful yum packages
 sub install_packages {
 
+    # do not install packages if skipyum option is passed
+    if ($skipyum) {
+        print_info("skipyum option passed, no packages were installed");
+        return 1;
+    }
+
     # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
-    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File ] (this may take a couple minutes)");
+    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ] (this may take a couple minutes)");
     ensure_working_rpmdb();
-    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois dev git pydf perl-CDB_File');
+    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON');
 
     return 1;
 }
@@ -838,8 +852,7 @@ sub add_custom_bashrc_to_bash_profile {
 sub disable_cphulkd {
 
     print_vms("Disabling cphulkd");
-    system_formatted('/usr/local/cpanel/scripts/restartsrv_cphulkd');
-    system_formatted('/usr/local/cpanel/bin/cphulk_pam_ctl --disable');
+    system_formatted('/usr/local/cpanel/bin/whmapi1 disable_cphulk');
 
     return 1;
 }
@@ -1032,5 +1045,27 @@ sub print_command {
     my $text = shift;
     print BOLD BRIGHT_YELLOW ON_BLACK '[COMMAND] * ';
     print BOLD WHITE ON_BLACK "$text\n";
+    return 1;
+}
+
+# adds two options to '/root/.bashrc' to allow for unlimited bash history
+sub append_history_options_to_bashrc {
+
+    open( my $fh, ">>", '/root/.bashrc' ) or die $!;
+    print $fh "export HISTFILESIZE= \n";
+    print $fh "export HISTSIZE=\n";
+    close $fh;
+
+    return 1;
+}
+
+# resets the mysql root password to a random password
+# this also ensure that mysql is running and that we have access to it
+sub set_local_mysql_root_password {
+
+    print_vms("Setting new password for mysql");
+    my $pw = _genpw();
+    system_formatted("/usr/local/cpanel/bin/whmapi1 set_local_mysql_root_password password=$pw");
+
     return 1;
 }
