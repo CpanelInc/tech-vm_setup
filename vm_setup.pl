@@ -127,6 +127,12 @@ disable_cphulkd();
 # this takes user input if necessary and executes these two processes if desired
 handle_additional_options();
 
+# rather than remove the --installcl option, I am putting in a some temp code saying to look for it in a future release
+if ($cltrue) {
+    print_info("The option to install CloudLinux (--installcl) has been temporarily removed.  Please look for it to return in a future release.  Thank you!\n");
+}
+
+##############################  OLD CL CODE WITH CloudLinux KEY removed ##########
 # install CloudLinux
 # this logic should be moved to a subroutine and
 # it will be revisited in TECH-407
@@ -135,32 +141,33 @@ handle_additional_options();
 # from a CL server
 # # grep ^rpm_dist /var/cpanel/sysinfo.config
 # rpm_dist=cloudlinux
-if ( not $force and $sysinfo{'ostype'} eq "cloudlinux" ) {
-    print_warn("CloudLinux already detected, no need to install CloudLinux\n");
+#if ( not $force and $sysinfo{'ostype'} eq "cloudlinux" ) {
+#    print_warn("CloudLinux already detected, no need to install CloudLinux\n");
 
-    # No need to install CloudLinux. It's already installed
-    $cltrue = 0;
-}
-if ($cltrue) {
+# No need to install CloudLinux. It's already installed
+#    $cltrue = 0;
+#}
+#if ($cltrue) {
 
-    # Remove /var/cpanel/nocloudlinux touch file (if it exists)
-    if ( -e ("/var/cpanel/nocloudlinux") ) {
-        print_vms("Removing /var/cpanel/nocloudlinux touch file");
-        unlink("/var/cpanel/nocloudlinux");
-    }
-    print_vms("Downloading cldeploy shell file");
-    system_formatted("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
-    print_vms("Executing cldeploy shell file (Note: this runs a upcp and can take time)");
-    my $clDeploy = qx[ echo | sh cldeploy -k 42-2efe234f2ae327824e879a2bec87fc59 ; echo ];
-    print_vms("Installing CageFS");
-    system_formatted("echo | yum -y install cagefs");
-    print_vms("Initializing CageFS");
-    system_formatted("echo | cagefsctl --init");
-    print_vms("Installing PHP Selector");
-    system_formatted("echo | yum -y groupinstall alt-php");
-    print_vms("Updating CageFS/LVE Manager");
-    system_formatted("echo | yum -y update cagefs lvemanager");
-}
+# Remove /var/cpanel/nocloudlinux touch file (if it exists)
+#    if ( -e ("/var/cpanel/nocloudlinux") ) {
+#        print_vms("Removing /var/cpanel/nocloudlinux touch file");
+#        unlink("/var/cpanel/nocloudlinux");
+#    }
+#    print_vms("Downloading cldeploy shell file");
+#    system_formatted("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
+#    print_vms("Executing cldeploy shell file (Note: this runs a upcp and can take time)");
+#    my $clDeploy = qx[ echo | sh cldeploy -k token_goes_here; echo ];
+#    print_vms("Installing CageFS");
+#    system_formatted("echo | yum -y install cagefs");
+#    print_vms("Initializing CageFS");
+#    system_formatted("echo | cagefsctl --init");
+#    print_vms("Installing PHP Selector");
+#    system_formatted("echo | yum -y groupinstall alt-php");
+#    print_vms("Updating CageFS/LVE Manager");
+#    system_formatted("echo | yum -y update cagefs lvemanager");
+#}
+##############################  OLD CL CODE WITH CloudLinux KEY removed ##########
 
 # restart cpsrvd
 restart_cpsrvd();
@@ -916,7 +923,9 @@ sub clean_exit {
     # _cat_file('/etc/motd');
     print "\n";
     if ($cltrue) {
-        print_info("CloudLinux installed! A reboot is required!\n");
+        print_info("You should log out and back in.\n");    # since $cltrue is temporarily disabled
+
+        #        print_info("CloudLinux installed! A reboot is required!\n");
     }
     else {
         print_info("You should log out and back in.\n");
