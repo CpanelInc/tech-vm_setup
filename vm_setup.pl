@@ -18,7 +18,7 @@ $Term::ANSIColor::AUTORESET = 1;
 my $VERSION = '1.0.4';
 
 # declare variables for script options and handle them
-my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME );
+my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME );
 GetOptions(
     "help"         => \$HELP,
     "verbose"      => \$VERBOSE,
@@ -28,7 +28,12 @@ GetOptions(
     "installcl"    => \$CLTRUE,
     "skipyum"      => \$SKIPYUM,
     "skiphostname" => \$SKIPHOSTNAME,
+    "hostname=s"   => \$HOSTNAME,
 );
+
+if ( defined $SKIPHOSTNAME && defined $HOSTNAME ) {
+    die "script usage:  skiphostname and hostname arguments are mutually exclusive\n";
+}
 
 # declare global variables for script
 # both of these variables are used during the CL install portion
@@ -84,9 +89,17 @@ my %sysinfo = (
 # hostname is in the format of 'os.cptier.tld'
 get_sysinfo( \%sysinfo );
 
-my $natip    = $sysinfo{'natip'};
-my $ip       = $sysinfo{'ip'};
-my $hostname = set_hostname( $sysinfo{'hostname'} );
+my $natip = $sysinfo{'natip'};
+my $ip    = $sysinfo{'ip'};
+my $hostname;
+
+if ( defined $HOSTNAME ) {
+    $hostname = set_hostname($HOSTNAME);
+}
+
+else {
+    $hostname = set_hostname( $sysinfo{'hostname'} );
+}
 
 # edit files with the new hostname
 configure_99_hostname_cfg($hostname);
