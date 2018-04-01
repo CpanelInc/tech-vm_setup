@@ -18,15 +18,15 @@ $Term::ANSIColor::AUTORESET = 1;
 my $VERSION = '1.0.3';
 
 # declare variables for script options and handle them
-my ( $help, $verbose, $full, $fast, $force, $cltrue, $skipyum );
+my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM );
 GetOptions(
-    "help"      => \$help,
-    "verbose"   => \$verbose,
-    "full"      => \$full,
-    "fast"      => \$fast,
-    "force"     => \$force,
-    "installcl" => \$cltrue,
-    "skipyum"   => \$skipyum,
+    "help"      => \$HELP,
+    "verbose"   => \$VERBOSE,
+    "full"      => \$FULL,
+    "fast"      => \$FAST,
+    "force"     => \$FORCE,
+    "installcl" => \$CLTRUE,
+    "skipyum"   => \$SKIPYUM,
 );
 
 # declare global variables for script
@@ -45,7 +45,7 @@ print_vms("Version: $VERSION\n");
 # help option should be processed first to ensure that nothing is erroneously executed if this option is passed
 # converted this to a function to make main less clunky and it may be of use if we add more script arguments in the future
 #  ex:  or die print_help_and_exit();
-if ($help) {
+if ($HELP) {
     print_help_and_exit();
 }
 
@@ -128,7 +128,7 @@ disable_cphulkd();
 handle_additional_options();
 
 # rather than remove the --installcl option, I am putting in a some temp code saying to look for it in a future release
-if ($cltrue) {
+if ($CLTRUE) {
     print_info("The option to install CloudLinux (--installcl) has been temporarily removed.  Please look for it to return in a future release.  Thank you!\n");
 }
 
@@ -141,13 +141,13 @@ if ($cltrue) {
 # from a CL server
 # # grep ^rpm_dist /var/cpanel/sysinfo.config
 # rpm_dist=cloudlinux
-#if ( not $force and $sysinfo{'ostype'} eq "cloudlinux" ) {
+#if ( not $FORCE and $sysinfo{'ostype'} eq "cloudlinux" ) {
 #    print_warn("CloudLinux already detected, no need to install CloudLinux\n");
 
 # No need to install CloudLinux. It's already installed
-#    $cltrue = 0;
+#    $CLTRUE = 0;
 #}
-#if ($cltrue) {
+#if ($CLTRUE) {
 
 # Remove /var/cpanel/nocloudlinux touch file (if it exists)
 #    if ( -e ("/var/cpanel/nocloudlinux") ) {
@@ -369,7 +369,7 @@ sub print_formatted {
             }
 
             append_vms_log($line);
-            if ($verbose) {
+            if ($VERBOSE) {
                 print $line;
             }
         }
@@ -392,7 +392,7 @@ sub system_formatted {
     my $retval = 1;
 
     append_vms_log("\nCommand:  $cmd\n");
-    if ($verbose) {
+    if ($VERBOSE) {
         print_command($cmd);
     }
 
@@ -489,7 +489,7 @@ sub print_help_and_exit {
 # create lock file otherwise
 sub handle_lock_file {
     if ( -e "/root/vmsetup.lock" ) {
-        if ( !$force ) {
+        if ( !$FORCE ) {
             print_warn("/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...");
             exit;
         }
@@ -655,7 +655,7 @@ sub _cpanel_gensysinfo {
 sub install_packages {
 
     # do not install packages if skipyum option is passed
-    if ($skipyum) {
+    if ($SKIPYUM) {
         print_info("skipyum option passed, no packages were installed");
         return 1;
     }
@@ -807,7 +807,7 @@ sub create_primary_account {
     # create test account
     print_vms("Creating test account - cptest");
     $rndpass = _genpw();
-    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not $force ) {
+    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not $FORCE ) {
         print_warn(q[Failed to create primary account (cptest.tld), skipping additional configurations for the account]);
         return 1;
     }
@@ -891,10 +891,10 @@ sub get_answer {
 
     my $question = shift;
 
-    if ($fast) {
+    if ($FAST) {
         return 'n';
     }
-    elsif ($full) {
+    elsif ($FULL) {
         return 'y';
     }
     else {
@@ -922,8 +922,8 @@ sub clean_exit {
     # this is ugly and not helpful in regards to script output
     # _cat_file('/etc/motd');
     print "\n";
-    if ($cltrue) {
-        print_info("You should log out and back in.\n");    # since $cltrue is temporarily disabled
+    if ($CLTRUE) {
+        print_info("You should log out and back in.\n");    # since $CLTRUE is temporarily disabled
 
         #        print_info("CloudLinux installed! A reboot is required!\n");
     }
