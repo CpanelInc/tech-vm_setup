@@ -18,15 +18,16 @@ $Term::ANSIColor::AUTORESET = 1;
 my $VERSION = '1.0.4';
 
 # declare variables for script options and handle them
-my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM );
+my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME );
 GetOptions(
-    "help"      => \$HELP,
-    "verbose"   => \$VERBOSE,
-    "full"      => \$FULL,
-    "fast"      => \$FAST,
-    "force"     => \$FORCE,
-    "installcl" => \$CLTRUE,
-    "skipyum"   => \$SKIPYUM,
+    "help"         => \$HELP,
+    "verbose"      => \$VERBOSE,
+    "full"         => \$FULL,
+    "fast"         => \$FAST,
+    "force"        => \$FORCE,
+    "installcl"    => \$CLTRUE,
+    "skipyum"      => \$SKIPYUM,
+    "skiphostname" => \$SKIPHOSTNAME,
 );
 
 # declare global variables for script
@@ -83,17 +84,9 @@ my %sysinfo = (
 # hostname is in the format of 'os.cptier.tld'
 get_sysinfo( \%sysinfo );
 
-my $hostname = $sysinfo{'hostname'};
 my $natip    = $sysinfo{'natip'};
 my $ip       = $sysinfo{'ip'};
-
-# set hostname
-print_vms("Setting hostname to $hostname");
-
-# use whmapi1 to set hostname so that we get a return value
-# this will be important when we start processing output to ensure these calls succeed
-# https://documentation.cpanel.net/display/SDK/WHM+API+1+Functions+-+sethostname
-system_formatted("/usr/local/cpanel/bin/whmapi1 sethostname hostname=$hostname");
+my $hostname = set_hostname( $sysinfo{'hostname'} );
 
 # edit files with the new hostname
 configure_99_hostname_cfg($hostname);
@@ -192,6 +185,7 @@ exit;
 # add_motd() - appends all arguments to '/etc/motd'
 # get_sysinfo() - populates %sysinfo hash with data
 # install_packages() - installs some useful yum packages
+# set_hostname() - returns the new hostname of the server after potentially setting it
 # set_local_mysql_root_password() - sets the local root password for mysql which ensures that mysql is running and we have access to it
 # create_api_token() - make API call to create an API token with the 'all' acl and add the token to '/etc/motd'
 # create_primary_account() - create 'cptest' cPanel acct w/ email address, db, and dbuser - then add info to '/etc/motd'
@@ -1109,4 +1103,30 @@ sub set_local_mysql_root_password {
     system_formatted("/usr/local/cpanel/bin/whmapi1 set_local_mysql_root_password password=$pw");
 
     return 1;
+}
+
+# takes a hostname to set the system to as an argument and potentially updates the hostname
+# returns the new hostname
+sub set_hostname {
+
+    my $hostname = shift;
+
+    if ( not $SKIPHOSTNAME ) {
+        print_vms("Setting hostname to $hostname");
+
+        # use whmapi1 to set hostname so that we get a return value
+        # this will be important when we start processing output to ensure these calls succeed
+        # https://documentation.cpanel.net/display/SDK/WHM+API+1+Functions+-+sethostname
+        system_formatted("/usr/local/cpanel/bin/whmapi1 sethostname hostname=$hostname");
+    }
+
+    else {
+        print_info("skiphostname passed, using current hostname to update configuration files");
+
+        # system_formatted will not work here since it returns 1 or 0 depending on whether or not it succeeds
+        # using qx[] instead to get the output of the command
+        $hostname = qx[/bin/hostname];
+    }
+
+    return $hostname;
 }
