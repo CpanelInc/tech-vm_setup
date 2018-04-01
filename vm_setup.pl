@@ -771,13 +771,15 @@ sub configure_etc_hosts {
     my $hn       = shift;
     my $local_ip = shift;
 
+    ( my $short_hn, undef, undef ) = split /\./, $hn;
+
     # corrent /etc/hosts
     print_vms("Correcting /etc/hosts");
     open( my $fh, '>', '/etc/hosts' )
       or die $!;
     print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
     print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
-    print $fh "$local_ip    host $hostname\n";
+    print $fh "$local_ip    $short_hn $hn\n";
     close($fh);
     return 1;
 }
