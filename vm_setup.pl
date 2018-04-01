@@ -31,6 +31,7 @@ GetOptions(
     "hostname=s"   => \$HOSTNAME,
 );
 
+# do not allow the script to run if mutually exclusive arguments are passed
 if ( defined $SKIPHOSTNAME && defined $HOSTNAME ) {
     die "script usage:  skiphostname and hostname arguments are mutually exclusive\n";
 }
@@ -91,15 +92,10 @@ get_sysinfo( \%sysinfo );
 
 my $natip = $sysinfo{'natip'};
 my $ip    = $sysinfo{'ip'};
-my $hostname;
 
-if ( defined $HOSTNAME ) {
-    $hostname = set_hostname($HOSTNAME);
-}
-
-else {
-    $hostname = set_hostname( $sysinfo{'hostname'} );
-}
+# set_hostname() will return the value of the new hostname for the server
+# and the value may not be the same as what is in %sysinfo
+my $hostname = set_hostname( $sysinfo{'hostname'} );
 
 # edit files with the new hostname
 configure_99_hostname_cfg($hostname);
@@ -1122,15 +1118,19 @@ sub set_local_mysql_root_password {
 # returns the new hostname
 sub set_hostname {
 
-    my $hostname = shift;
+    my $hn = shift;
+
+    if ( defined $HOSTNAME ) {
+        $hn = $HOSTNAME;
+    }
 
     if ( not $SKIPHOSTNAME ) {
-        print_vms("Setting hostname to $hostname");
+        print_vms("Setting hostname to $hn");
 
         # use whmapi1 to set hostname so that we get a return value
         # this will be important when we start processing output to ensure these calls succeed
         # https://documentation.cpanel.net/display/SDK/WHM+API+1+Functions+-+sethostname
-        system_formatted("/usr/local/cpanel/bin/whmapi1 sethostname hostname=$hostname");
+        system_formatted("/usr/local/cpanel/bin/whmapi1 sethostname hostname=$hn");
     }
 
     else {
@@ -1138,8 +1138,8 @@ sub set_hostname {
 
         # system_formatted will not work here since it returns 1 or 0 depending on whether or not it succeeds
         # using qx[] instead to get the output of the command
-        $hostname = qx[/bin/hostname];
+        $hn = qx[/bin/hostname];
     }
 
-    return $hostname;
+    return $hn;
 }
