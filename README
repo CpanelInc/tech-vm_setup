@@ -1,7 +1,7 @@
 script to make changes to the OpenStack vms
 
 please fork the repo and submit a pull request for any changes you'd like to see
-or, create a feature request under "Issues"
+or submit a TECH case with [VMS] in the subject
 
 Usage: perl vm_setup.pl [options]
 
@@ -15,6 +15,10 @@ Options:
 --full: Passes yes to all optional setup functions
 --installcl: Installs CloudLinux(can take a while and requires reboot)
 --skipyum:  Skips installing yum packages
+--skiphostname:  Skips setting the hostname
+--hostname=$hostname:  allows user to provide a hostname for the system
+
+Note: --skiphostname and --hostname=$hostname are mutually exclusive
 
 Full list of things this does: 
 -------------- 

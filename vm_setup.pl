@@ -473,6 +473,11 @@ sub print_help_and_exit {
     print "--full: Passes yes to all optional setup functions\n";
     print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
     print "--skipyum:  Skips installing yum packages\n";
+    print "--skiphostname:  Skips setting the hostname\n";
+    print "--hostname=\$hostname:  allows user to provide a hostname for the system\n";
+    print "\n";
+    print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
+    print "\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
     print "- Installs common/useful packages\n";
