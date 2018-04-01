@@ -118,7 +118,14 @@ set_local_mysql_root_password();
 add_motd("\n\nVM Setup Script created the following test accounts:\n");
 
 create_api_token();
+
+# create cptest account along with a test email account and database
 create_primary_account();
+
+# create a reseller account and an account owned by the reseller account
+if ( not create_account( "reseller", 1, "root" ) ) {
+    create_account( "owned", 0, "reseller" );
+}
 
 update_tweak_settings();
 disable_cphulkd();
@@ -188,6 +195,7 @@ exit;
 # set_local_mysql_root_password() - sets the local root password for mysql which ensures that mysql is running and we have access to it
 # create_api_token() - make API call to create an API token with the 'all' acl and add the token to '/etc/motd'
 # create_primary_account() - create 'cptest' cPanel acct w/ email address, db, and dbuser - then add info to '/etc/motd'
+# create_account() - create a cPanel account based on the arguments passed.  arg 1 is the name of the account, arg 2 is whether it is a reseller account, and arg 3 is the owner of the account
 # update_tweak_settings() - update tweak settings to allow remote domains and unregisteredomains
 # disable_cphulkd() - stop and disable cphulkd
 # restart_cpsrvd() - restarts cpsrvd
@@ -792,6 +800,30 @@ sub create_api_token {
     system_formatted('/usr/local/cpanel/bin/whmapi1 api_token_create token_name=all_access acl-1=all');
 
     return 1;
+}
+
+# creates account using whmapi1
+# https://documentation.cpanel.net/display/DD/WHM+API+1+Functions+-+createacct
+# three arguments
+# user, is a reseller account, owner of account
+sub create_account {
+
+    my $user        = shift;
+    my $is_reseller = shift;
+    my $owner       = shift;
+
+    my $rndpass;
+
+    print_vms("Create test account - $user");
+
+    $rndpass = _genpw();
+
+    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited reseller=$is_reseller owner=$owner") and not $FORCE ) {
+        print_warn("Failed to create account: $user.tld");
+        return 1;
+    }
+
+    return 0;
 }
 
 # create the primary test account
