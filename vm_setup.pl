@@ -29,7 +29,7 @@ GetOptions(
     "skipyum"      => \$SKIPYUM,
     "skiphostname" => \$SKIPHOSTNAME,
     "hostname=s"   => \$HOSTNAME,
-);
+) or die($!);
 
 # do not allow the script to run if mutually exclusive arguments are passed
 if ( defined $SKIPHOSTNAME && defined $HOSTNAME ) {
