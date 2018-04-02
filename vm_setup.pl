@@ -18,7 +18,7 @@ $Term::ANSIColor::AUTORESET = 1;
 my $VERSION = '1.0.4';
 
 # declare variables for script options and handle them
-my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME );
+my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER );
 GetOptions(
     "help"         => \$HELP,
     "verbose"      => \$VERBOSE,
@@ -29,6 +29,7 @@ GetOptions(
     "skipyum"      => \$SKIPYUM,
     "skiphostname" => \$SKIPHOSTNAME,
     "hostname=s"   => \$HOSTNAME,
+    "tier=s"       => \$TIER,
 ) or die($!);
 
 # do not allow the script to run if mutually exclusive arguments are passed
@@ -70,6 +71,8 @@ setup_resolv_conf();
 
 install_packages();
 set_screen_perms();
+
+configure_etc_cpupdate_conf() if ($TIER);
 
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
@@ -475,6 +478,7 @@ sub print_help_and_exit {
     print "--skipyum:  Skips installing yum packages\n";
     print "--skiphostname:  Skips setting the hostname\n";
     print "--hostname=\$hostname:  allows user to provide a hostname for the system\n";
+    print "--tier=\$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates\n";
     print "\n";
     print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
     print "\n";
@@ -1149,4 +1153,21 @@ sub set_hostname {
     }
 
     return $hn;
+}
+
+# only runs if the --tier option is passed
+# overwrites '/etc/cpupdate.conf' with the new tier and enables daily updates if it is
+sub configure_etc_cpupdate_conf {
+
+    print_vms("Updating /etc/cpupdate.conf");
+    open( my $fh, '>', '/etc/cpupdate.conf' )
+      or die $!;
+    print $fh "CPANEL=$TIER\n";
+    print $fh "RPMUP=daily\n";
+    print $fh "SARULESUP=daily\n";
+    print $fh "STAGING_DIR=/usr/local/cpanel\n";
+    print $fh "UPDATES=daily\n";
+    close($fh);
+
+    return 1;
 }
