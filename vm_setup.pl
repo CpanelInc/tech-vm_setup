@@ -223,6 +223,7 @@ exit;
 # append_history_options_to_bashrc() - append options to '/root/.bashrc' so that we have unlimited bash history
 # create_vms_log_file() - creates the scripts log file
 # append_vms_log() - appends a line (given as argument) to the scripts log file
+# disable_ea4_experimental() - disables the ea4-experimental repository if yum succeeds in install_packages()
 #
 #
 # process_output() - processes the output of syscalls passed to system_formatted()
@@ -427,6 +428,11 @@ sub system_formatted {
             print_command($cmd);
             print_warn("Some yum modules may have failed to install, check log for detail");
         }
+
+        # yum completed successfully
+        else {
+            disable_ea4_experimental();
+        }
     }
 
     if ( not $retval ) {
@@ -485,6 +491,7 @@ sub print_help_and_exit {
     print "Full list of things this does: \n";
     print "-------------- \n";
     print "- Installs common/useful packages\n";
+    print "- Install the ea4-experimental repository and disables it\n";
     print "- Sets hostname\n";
     print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
     print "- Performs basic setup wizard\n";
@@ -682,9 +689,10 @@ sub install_packages {
 
     # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
-    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ] (this may take a couple minutes)");
+    # per request, enabling the ea4-experimental repo
+    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental ] (this may take a couple minutes)");
     ensure_working_rpmdb();
-    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON');
+    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental');
 
     return 1;
 }
@@ -1169,5 +1177,35 @@ sub configure_etc_cpupdate_conf {
     print $fh "UPDATES=daily\n";
     close($fh);
 
+    return 1;
+}
+
+# disable the ea4-experimental repository
+# only should be ran if yum install succeeds
+sub disable_ea4_experimental {
+    if ( -e '/etc/yum.repos.d/EA4-experimental.repo' ) {
+
+        print_vms("Installed and disabled EA4-experimental repository");
+
+        open( my $read, '<', '/etc/yum.repos.d/EA4-experimental.repo' )
+          or die $!;
+        open( my $write, '>', '/etc/yum.repos.d/EA4-experimental.repo.vmstmp' )
+          or die $!;
+
+        while (<$read>) {
+            if ( $_ =~ /^enabled/ ) {
+                print $write "enabled=0\n";
+            }
+
+            else {
+                print $write $_;
+            }
+        }
+
+        close $read;
+        close $write;
+
+        rename( '/etc/yum.repos.d/EA4-experimental.repo.vmstmp', '/etc/yum.repos.d/EA4-experimental.repo' );
+    }
     return 1;
 }
