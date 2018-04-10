@@ -17,12 +17,16 @@ Options:
 --skipyum:  Skips installing yum packages
 --skiphostname:  Skips setting the hostname
 --hostname=$hostname:  allows user to provide a hostname for the system
+--tier=$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates
+--bashurl=$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt
+                              this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.
 
 Note: --skiphostname and --hostname=$hostname are mutually exclusive
 
 Full list of things this does: 
 -------------- 
 - Installs common/useful packages
+- Install the ea4-experimental repository and disables it
 - Sets hostname
 - Updates /var/cpanel/cpanel.config (Tweak Settings)
 - Performs basic setup wizard
@@ -38,3 +42,4 @@ Full list of things this does:
 - Runs upcp (optional)
 - Runs check_cpanel_rpms --fix (optional)
 - Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)
+
