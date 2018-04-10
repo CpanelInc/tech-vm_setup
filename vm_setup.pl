@@ -19,6 +19,7 @@ my $VERSION = '1.0.4';
 
 # declare variables for script options and handle them
 my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER );
+my @BASHURL;
 GetOptions(
     "help"         => \$HELP,
     "verbose"      => \$VERBOSE,
@@ -30,6 +31,7 @@ GetOptions(
     "skiphostname" => \$SKIPHOSTNAME,
     "hostname=s"   => \$HOSTNAME,
     "tier=s"       => \$TIER,
+    "bashurl=s"    => \@BASHURL,
 ) or die($!);
 
 # do not allow the script to run if mutually exclusive arguments are passed
@@ -485,6 +487,8 @@ sub print_help_and_exit {
     print "--skiphostname:  Skips setting the hostname\n";
     print "--hostname=\$hostname:  allows user to provide a hostname for the system\n";
     print "--tier=\$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates\n";
+    print "--bashurl=\$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt\n";
+    print "                              this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.\n";
     print "\n";
     print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
     print "\n";
@@ -900,10 +904,28 @@ sub update_tweak_settings {
 # append aliases directly into STDIN upon login
 sub add_custom_bashrc_to_bash_profile {
 
+    my $txt;
     print_vms("Updating '/root/.bash_profile with help aliases");
-    my $txt = q[ source /dev/stdin <<< "$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)" ];
     open( my $fh, ">>", '/root/.bash_profile' ) or die $!;
-    print $fh "$txt\n";
+
+    # returns -1 if the user did not define this argument
+    if ( $#BASHURL != -1 ) {
+
+        # allows for the user to only issue --bashurl and provide a comma separated list as well
+        @BASHURL = split( /,/, join( ',', @BASHURL ) );
+
+        # iterate through the list of URLs and append them to '/root/.bash_profile'
+        foreach my $url (@BASHURL) {
+            $txt = q[ source /dev/stdin <<< "$(curl -s ] . $url . q[ )" ];
+            print $fh "$txt\n";
+        }
+    }
+
+    else {
+        $txt = q[ source /dev/stdin <<< "$(curl -s https://ssp.cpanel.net/aliases/aliases.txt)" ];
+        print $fh "$txt\n";
+    }
+
     close $fh;
 
     return 1;
