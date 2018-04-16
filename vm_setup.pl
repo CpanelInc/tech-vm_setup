@@ -15,10 +15,10 @@ use Term::ANSIColor qw(:constants);
 # reset colors to default when done
 $Term::ANSIColor::AUTORESET = 1;
 
-my $VERSION = '1.0.4';
+my $VERSION = '1.0.5';
 
 # declare variables for script options and handle them
-my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER );
+my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER, $SKIP );
 my @BASHURL;
 GetOptions(
     "help"         => \$HELP,
@@ -31,12 +31,26 @@ GetOptions(
     "skiphostname" => \$SKIPHOSTNAME,
     "hostname=s"   => \$HOSTNAME,
     "tier=s"       => \$TIER,
+    "skip"         => \$SKIP,
     "bashurl=s"    => \@BASHURL,
 ) or die($!);
+
+# --skip should be a shortcut for --fast --skipyum and --skiphostname
+# if it is setup, then it is like passing the following options
+if ( $SKIP ) {
+    $FAST = 1;
+    $SKIPYUM = 1;
+    $SKIPHOSTNAME = 1;
+}
 
 # do not allow the script to run if mutually exclusive arguments are passed
 if ( defined $SKIPHOSTNAME && defined $HOSTNAME ) {
     die "script usage:  skiphostname and hostname arguments are mutually exclusive\n";
+}
+
+# --fast and --full should be mutually exclusive arguments
+if ( defined $FULL && defined $FAST ) {
+    die "script usage:  fast and full arguments are mutually exclusive\n";
 }
 
 # declare global variables for script
@@ -489,8 +503,10 @@ sub print_help_and_exit {
     print "--tier=\$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates\n";
     print "--bashurl=\$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt\n";
     print "                              this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.\n";
+    print "--skip:  shortcut to passing --fast --skipyum --skiphostname\n";
     print "\n";
     print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
+    print "Note: --fast and --full arguments are mutually exclusive\n";
     print "\n";
     print "Full list of things this does: \n";
     print "-------------- \n";
