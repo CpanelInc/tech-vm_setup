@@ -37,9 +37,9 @@ GetOptions(
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
 # if it is setup, then it is like passing the following options
-if ( $SKIP ) {
-    $FAST = 1;
-    $SKIPYUM = 1;
+if ($SKIP) {
+    $FAST         = 1;
+    $SKIPYUM      = 1;
     $SKIPHOSTNAME = 1;
 }
 
@@ -967,11 +967,31 @@ sub handle_additional_options {
         system_formatted('/scripts/upcp');
     }
 
-    # check_cpanel_rpms second
-    $answer = get_answer("would you like to run check_cpanel_rpms now? [n]: ");
+    my $check_rpms = 0;
+
+    $answer = get_answer("would you like to install ClamAV? [n]: ");
     if ( $answer eq "y" ) {
-        print_vms("Running check_cpanel_rpms");
+        $check_rpms = 1;
+        print_vms("Setting ClamAV to installed");
+        system_formatted('/scripts/update_local_rpm_versions --edit target_settings.clamav installed');
+    }
+
+    $answer = get_answer("would you like to install Munin? [n]: ");
+    if ( $answer eq "y" ) {
+        $check_rpms = 1;
+        print_vms("Setting Munin to installed");
+        system_formatted('/scripts/update_local_rpm_versions --edit target_settings.munin installed');
+    }
+
+    if ($check_rpms) {
+        print_vms("running check_cpanel_rpms to install additional packages (This may take a few minutes)");
         system_formatted('/scripts/check_cpanel_rpms --fix');
+    }
+
+    $answer = get_answer("would you like to install cPanel Solr? [n]: ");
+    if ( $answer eq "y" ) {
+        print_vms("Installing cPanel Solr (This may take a few minutes");
+        system_formatted('/usr/local/cpanel/scripts/install_dovecot_fts');
     }
 
     return 1;
