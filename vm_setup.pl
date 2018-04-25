@@ -229,7 +229,9 @@ exit;
 # print_help_and_exit() - ran if --help is passed - prints script usage/info and exits
 # check_license() - perform a cPanel license check and die if it does not succeed
 # handle_lock_file() - exit if lock file exists and --force is not passed, otherwise, create lock file
-# handle_additional_options() - the script user has option to run a cPanel update and check_cpanel_rpms.  This executes these processes if the user desires
+# handle_additional_options() - the script user has the option to install additional software such as clam, this script handles those options
+# clam_and_munin_options() - offer to install clamav and munin and install them if the user desires
+# solr_option() - offer to install solr and install it if the user desires
 # clean_exit() - print some helpful output for the user before exiting
 #
 # setup_resolv_conf() - sets '/etc/resolv.conf' to use cPanel resolvers
@@ -965,10 +967,8 @@ sub disable_cphulkd {
 # RPM versions system documentation
 # https://documentation.cpanel.net/display/68Docs/RPM+Targets
 # https://documentation.cpanel.net/display/68Docs/The+update_local_rpm_versions+Script
-
-# user has the option to install additional software such as clamav
-# this takes user input if necessary and performs necessary tasks
-sub handle_additional_options {
+# offer to install clamav and munin
+sub clam_and_munin_options {
 
     my $answer     = 0;
     my $check_rpms = 0;
@@ -1002,6 +1002,14 @@ sub handle_additional_options {
         system_formatted('/usr/local/cpanel/scripts/check_cpanel_rpms --fix');
     }
 
+    return 1;
+}
+
+# offer to install solr
+sub solr_option {
+
+    my $answer = 0;
+
     if ($SOLR) {
         $answer = 'y';
     }
@@ -1012,6 +1020,16 @@ sub handle_additional_options {
         print_vms("Installing cPanel Solr (This may take a few minutes)");
         system_formatted('/usr/local/cpanel/scripts/install_dovecot_fts');
     }
+
+    return 1;
+}
+
+# user has the option to install additional software such as clamav
+# this takes user input if necessary and performs necessary tasks
+sub handle_additional_options {
+
+    clam_and_munin_options();
+    solr_option();
 
     return 1;
 }
