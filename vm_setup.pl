@@ -508,6 +508,9 @@ sub print_help_and_exit {
     print "--bashurl=\$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt\n";
     print "                              this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.\n";
     print "--skip:  shortcut to passing --fast --skipyum --skiphostname\n";
+    print "--clam:  install ClamAV regardless of --fast/--skip option being passed\n";
+    print "--munin:  install Munin regardless of --fast/--skip option being passed\n";
+    print "--solr:  install Solr regardless of --fast/--skip option being passed\n";
     print "\n";
     print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
     print "Note: --fast and --full arguments are mutually exclusive\n";
@@ -528,8 +531,7 @@ sub print_help_and_exit {
     print "- Updates motd\n";
     print "- Sets unlimited bash history\n";
     print "- Creates /root/.bash_profile with helpful aliases\n";
-    print "- Runs upcp (optional)\n";
-    print "- Runs check_cpanel_rpms --fix (optional)\n";
+    print "- Installs ClamAV, Munin, and Solr (optional)\n";
     print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
     exit;
 }
