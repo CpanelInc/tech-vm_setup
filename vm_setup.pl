@@ -19,24 +19,25 @@ my $VERSION = '1.0.5';
 
 # declare variables for script options and handle them
 my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER, $SKIP );
-my ( $CLAM, $MUNIN, $SOLR );
+my ( $CLAM, $MUNIN, $SOLR, $QUOTA );
 my @BASHURL;
 GetOptions(
-    "help"         => \$HELP,
-    "verbose"      => \$VERBOSE,
-    "full"         => \$FULL,
-    "fast"         => \$FAST,
-    "force"        => \$FORCE,
-    "installcl"    => \$CLTRUE,
-    "skipyum"      => \$SKIPYUM,
-    "skiphostname" => \$SKIPHOSTNAME,
-    "hostname=s"   => \$HOSTNAME,
-    "tier=s"       => \$TIER,
-    "skip"         => \$SKIP,
-    "clam"         => \$CLAM,
-    "munin"        => \$MUNIN,
-    "solr"         => \$SOLR,
-    "bashurl=s"    => \@BASHURL,
+    "help"          => \$HELP,
+    "verbose"       => \$VERBOSE,
+    "full"          => \$FULL,
+    "fast"          => \$FAST,
+    "force"         => \$FORCE,
+    "installcl"     => \$CLTRUE,
+    "skipyum"       => \$SKIPYUM,
+    "skiphostname"  => \$SKIPHOSTNAME,
+    "hostname=s"    => \$HOSTNAME,
+    "tier=s"        => \$TIER,
+    "skip"          => \$SKIP,
+    "clam"          => \$CLAM,
+    "munin"         => \$MUNIN,
+    "solr"          => \$SOLR,
+    "enable-quotas" => \$QUOTA,
+    "bashurl=s"     => \@BASHURL,
 ) or die($!);
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
@@ -513,6 +514,7 @@ sub print_help_and_exit {
     print "--clam:  install ClamAV regardless of --fast/--skip option being passed\n";
     print "--munin:  install Munin regardless of --fast/--skip option being passed\n";
     print "--solr:  install Solr regardless of --fast/--skip option being passed\n";
+    print "--enable-quotas:  enable quotas regardless of --fast/--skip option being passed\n";
     print "\n";
     print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
     print "Note: --fast and --full arguments are mutually exclusive\n";
@@ -1024,12 +1026,33 @@ sub solr_option {
     return 1;
 }
 
+# to do:  update help text
+sub quotas_option {
+
+    my $answer = 0;
+
+    if ($QUOTA) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer("would you like to enable quotas? [n]: ");
+    }
+    if ( $answer eq "y" ) {
+        $QUOTA = 1;    # so that clean_exit() knows that quotas were enabled
+        print_vms("Enabling quotas (This may take a few minutes)");
+        system_formatted('/usr/local/cpanel/scripts/fixquotas');
+    }
+
+    return 1;
+}
+
 # user has the option to install additional software such as clamav
 # this takes user input if necessary and performs necessary tasks
 sub handle_additional_options {
 
     clam_and_munin_options();
     solr_option();
+    quotas_option();
 
     return 1;
 }
@@ -1071,10 +1094,8 @@ sub clean_exit {
     # this is ugly and not helpful in regards to script output
     # _cat_file('/etc/motd');
     print "\n";
-    if ($CLTRUE) {
-        print_info("You should log out and back in.\n");    # since $CLTRUE is temporarily disabled
-
-        #        print_info("CloudLinux installed! A reboot is required!\n");
+    if ( $CLTRUE || $QUOTA ) {
+        print_info("A reboot is required for all the changes performed by this script to take affect!!!\n");
     }
     else {
         print_info("You should log out and back in.\n");
