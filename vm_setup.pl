@@ -19,6 +19,7 @@ my $VERSION = '1.0.5';
 
 # declare variables for script options and handle them
 my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER, $SKIP );
+my ( $CLAM, $MUNIN, $SOLR );
 my @BASHURL;
 GetOptions(
     "help"         => \$HELP,
@@ -32,6 +33,9 @@ GetOptions(
     "hostname=s"   => \$HOSTNAME,
     "tier=s"       => \$TIER,
     "skip"         => \$SKIP,
+    "clam"         => \$CLAM,
+    "munin"        => \$MUNIN,
+    "solr"         => \$SOLR,
     "bashurl=s"    => \@BASHURL,
 ) or die($!);
 
@@ -151,7 +155,7 @@ if ( not create_account( "reseller", 1, "root" ) ) {
 update_tweak_settings();
 disable_cphulkd();
 
-# user has option to run upcp and check_cpanel_rpms
+# user has the option to make install additional components such as clamav
 # this takes user input if necessary and executes these two processes if desired
 handle_additional_options();
 
@@ -956,41 +960,54 @@ sub disable_cphulkd {
     return 1;
 }
 
-# user has option to run upcp and check_cpanel_rpms
-# this takes user input if necessary and executes these two processes if desired
+# RPM versions system documentation
+# https://documentation.cpanel.net/display/68Docs/RPM+Targets
+# https://documentation.cpanel.net/display/68Docs/The+update_local_rpm_versions+Script
+
+# user has the option to install additional software such as clamav
+# this takes user input if necessary and performs necessary tasks
 sub handle_additional_options {
 
-    # upcp first
-    my $answer = get_answer("would you like to run upcp now? [n]: ");
-    if ( $answer eq "y" ) {
-        print_vms("Running upcp");
-        system_formatted('/scripts/upcp');
-    }
-
+    my $answer     = 0;
     my $check_rpms = 0;
 
-    $answer = get_answer("would you like to install ClamAV? [n]: ");
+    if ($CLAM) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer("would you like to install ClamAV? [n]: ");
+    }
     if ( $answer eq "y" ) {
         $check_rpms = 1;
         print_vms("Setting ClamAV to installed");
-        system_formatted('/scripts/update_local_rpm_versions --edit target_settings.clamav installed');
+        system_formatted('/usr/local/cpanel/scripts/update_local_rpm_versions --edit target_settings.clamav installed');
     }
 
-    $answer = get_answer("would you like to install Munin? [n]: ");
+    if ($MUNIN) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer("would you like to install Munin? [n]: ");
+    }
     if ( $answer eq "y" ) {
         $check_rpms = 1;
         print_vms("Setting Munin to installed");
-        system_formatted('/scripts/update_local_rpm_versions --edit target_settings.munin installed');
+        system_formatted('/usr/local/cpanel/scripts/update_local_rpm_versions --edit target_settings.munin installed');
     }
 
     if ($check_rpms) {
         print_vms("running check_cpanel_rpms to install additional packages (This may take a few minutes)");
-        system_formatted('/scripts/check_cpanel_rpms --fix');
+        system_formatted('/usr/local/cpanel/scripts/check_cpanel_rpms --fix');
     }
 
-    $answer = get_answer("would you like to install cPanel Solr? [n]: ");
+    if ($SOLR) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer("would you like to install cPanel Solr? [n]: ");
+    }
     if ( $answer eq "y" ) {
-        print_vms("Installing cPanel Solr (This may take a few minutes");
+        print_vms("Installing cPanel Solr (This may take a few minutes)");
         system_formatted('/usr/local/cpanel/scripts/install_dovecot_fts');
     }
 
