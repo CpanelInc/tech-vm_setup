@@ -19,7 +19,7 @@ my $VERSION = '1.0.5';
 
 # declare variables for script options and handle them
 my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER, $SKIP );
-my ( $CLAM, $MUNIN, $SOLR, $QUOTA );
+my ( $CLAM, $MUNIN, $SOLR, $QUOTA, $PDNS );
 my @BASHURL;
 GetOptions(
     "help"          => \$HELP,
@@ -37,6 +37,7 @@ GetOptions(
     "munin"         => \$MUNIN,
     "solr"          => \$SOLR,
     "enable-quotas" => \$QUOTA,
+    "pdns"          => \$PDNS,
     "bashurl=s"     => \@BASHURL,
 ) or die($!);
 
@@ -233,6 +234,8 @@ exit;
 # handle_additional_options() - the script user has the option to install additional software such as clam, this script handles those options
 # clam_and_munin_options() - offer to install clamav and munin and install them if the user desires
 # solr_option() - offer to install solr and install it if the user desires
+# quotas_option() - offer to enable quotas and run fixquotas if the user desires
+# pdns_option() - offer to switch to use PowerDNS and switch the nameserver to PowerDNS if the user desires
 # clean_exit() - print some helpful output for the user before exiting
 #
 # setup_resolv_conf() - sets '/etc/resolv.conf' to use cPanel resolvers
@@ -515,6 +518,7 @@ sub print_help_and_exit {
     print "--munin:  install Munin regardless of --fast/--skip option being passed\n";
     print "--solr:  install Solr regardless of --fast/--skip option being passed\n";
     print "--enable-quotas:  enable quotas regardless of --fast/--skip option being passed\n";
+    print "--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed\n";
     print "\n";
     print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
     print "Note: --fast and --full arguments are mutually exclusive\n";
@@ -1026,7 +1030,6 @@ sub solr_option {
     return 1;
 }
 
-# to do:  update help text
 sub quotas_option {
 
     my $answer = 0;
@@ -1046,6 +1049,24 @@ sub quotas_option {
     return 1;
 }
 
+sub pdns_option {
+
+    my $answer = 0;
+    
+    if ($PDNS) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer("would you like to switch your nameserver to use PowerDNS? [n]: ");
+    }
+    if ( $answer eq "y" ) {
+        print_vms("Switching nameserver to use PowerDNS (This may take a few minutes)");
+        system_formatted('/usr/local/cpanel/scripts/setupnameserver powerdns');
+    }
+
+    return 1;
+}
+
 # user has the option to install additional software such as clamav
 # this takes user input if necessary and performs necessary tasks
 sub handle_additional_options {
@@ -1053,6 +1074,7 @@ sub handle_additional_options {
     clam_and_munin_options();
     solr_option();
     quotas_option();
+    pdns_option();
 
     return 1;
 }
