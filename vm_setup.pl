@@ -263,6 +263,8 @@ exit;
 # print_info() - color formatted output to make script output look better
 # print_question() - color formatted output to make script output look better
 # print_command() - color formatted output to make script output look better
+# print_header() - color formatted output to make print_help_and_exit() look better
+# print_status() - color formatted output to make print_help_and_exit() look better
 #
 # _gen_pw() - returns a 25 char rand pw
 # _stdin() - returns a string taken from STDIN
@@ -496,51 +498,70 @@ sub _stdin {
     return $string;
 }
 
+# used to make print_help_and_exit() more presentable
+sub print_header {
+    my $text = shift;
+    print BOLD CYAN "$text\n";
+
+    return 1;
+}
+
+# used to make print_help_and_exit() more presentable
+sub print_status {
+    my $text = shift;
+    print YELLOW "$text\n";
+
+    return 1;
+}
+
 # print script usage information and exit
 sub print_help_and_exit {
-    print "Usage: perl vm_setup.pl [options]\n\n";
+    print_info("Usage: /usr/local/cpanel/3rdparty/bin/perl vm_setup.pl [options]");
+    print "\n";
     print "Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. \n\n";
-    print "Options: \n";
+    print_header("Options:");
     print "-------------- \n";
-    print "--force: Ignores previous run check\n";
-    print "--fast: Skips all optional setup functions\n";
-    print "--verbose: pretty self explanatory\n";
-    print "--full: Passes yes to all optional setup functions\n";
-    print "--installcl: Installs CloudLinux(can take a while and requires reboot)\n";
-    print "--skipyum:  Skips installing yum packages\n";
-    print "--skiphostname:  Skips setting the hostname\n";
-    print "--hostname=\$hostname:  allows user to provide a hostname for the system\n";
-    print "--tier=\$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates\n";
-    print "--bashurl=\$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt\n";
-    print "                              this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.\n";
-    print "--skip:  shortcut to passing --fast --skipyum --skiphostname\n";
-    print "--clam:  install ClamAV regardless of --fast/--skip option being passed\n";
-    print "--munin:  install Munin regardless of --fast/--skip option being passed\n";
-    print "--solr:  install Solr regardless of --fast/--skip option being passed\n";
-    print "--enable-quotas:  enable quotas regardless of --fast/--skip option being passed\n";
-    print "--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed\n";
+    print_status("--force: Ignores previous run check");
+    print_status("--fast: Skips all optional setup functions");
+    print_status("--verbose: pretty self explanatory");
+    print_status("--full: Passes yes to all optional setup functions");
+    print_status("--installcl: Installs CloudLinux(can take a while and requires reboot)");
+    print_status("--skipyum:  Skips installing yum packages");
+    print_status("--skiphostname:  Skips setting the hostname");
+    print_status("--hostname=\$hostname:  allows user to provide a hostname for the system");
+    print_status("--tier=\$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates");
+    print_status("--bashurl=\$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt");
+    print_status("                              this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.");
+    print_status("--skip:  shortcut to passing --fast --skipyum --skiphostname");
+    print_status("--clam:  install ClamAV regardless of --fast/--skip option being passed");
+    print_status("--munin:  install Munin regardless of --fast/--skip option being passed");
+    print_status("--solr:  install Solr regardless of --fast/--skip option being passed");
+    print_status("--enable-quotas:  enable quotas regardless of --fast/--skip option being passed");
+    print_status("--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed");
     print "\n";
-    print "Note: --skiphostname and --hostname=\$hostname are mutually exclusive\n";
-    print "Note: --fast and --full arguments are mutually exclusive\n";
+    print_info("--skiphostname and --hostname=\$hostname are mutually exclusive");
+    print_info("--fast and --full arguments are mutually exclusive");
     print "\n";
-    print "Full list of things this does: \n";
+    print_header("Full list of things this does:");
     print "-------------- \n";
-    print "- Installs common/useful packages\n";
-    print "- Install the ea4-experimental repository and disables it\n";
-    print "- Sets hostname\n";
-    print "- Updates /var/cpanel/cpanel.config (Tweak Settings)\n";
-    print "- Performs basic setup wizard\n";
-    print "- Fixes /etc/hosts\n";
-    print "- Fixes screen permissions\n";
-    print "- Sets local mysql password to ensure mysql access\n";
-    print "- Creates test account (with email and database)\n";
-    print "- Disables cphulkd\n";
-    print "- Creates api key\n";
-    print "- Updates motd\n";
-    print "- Sets unlimited bash history\n";
-    print "- Creates /root/.bash_profile with helpful aliases\n";
-    print "- Installs ClamAV, Munin, and Solr (optional)\n";
-    print "- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)\n";
+    print_status("- Installs common/useful packages");
+    print_status("- Install the ea4-experimental repository and disables it");
+    print_status("- Sets hostname");
+    print_status("- Updates /var/cpanel/cpanel.config (Tweak Settings)");
+    print_status("- Performs basic setup wizard");
+    print_status("- Fixes /etc/hosts");
+    print_status("- Fixes screen permissions");
+    print_status("- Sets local mysql password to ensure mysql access");
+    print_status("- Creates test account (with email and database)");
+    print_status("- Disables cphulkd");
+    print_status("- Creates api key");
+    print_status("- Updates motd");
+    print_status("- Sets unlimited bash history");
+    print_status("- Creates /root/.bash_profile with helpful aliases");
+    print_status("- This includes a script that will allow for git auto-completion");
+    print_status("- Installs ClamAV, Munin, and Solr (optional)");
+    print_status("- Switches the nameserver to PowerDNS (optional)");
+    print_status("- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)");
     exit;
 }
 
@@ -1057,7 +1078,7 @@ sub quotas_option {
 sub pdns_option {
 
     my $answer = 0;
-    
+
     if ($PDNS) {
         $answer = 'y';
     }
