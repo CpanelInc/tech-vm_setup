@@ -956,6 +956,10 @@ sub add_custom_bashrc_to_bash_profile {
         print $fh "$txt\n";
     }
 
+    # add script to provide git auto-completion
+    $txt = q[ source /dev/stdin <<< "$(curl -s https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash)" ];
+    print $fh "$txt\n";
+
     close $fh;
 
     return 1;
