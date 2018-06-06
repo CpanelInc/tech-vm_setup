@@ -751,9 +751,9 @@ sub install_packages {
     # added perl-CDB_FILE to be installed through yum instead of cpanm
     # per request, enabling the ea4-experimental repo
     # adding git-extras to help automate some git tasks:  https://github.com/tj/git-extras
-    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental git-extras ] (this may take a couple minutes)");
+    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental git-extras perl-Net-DNS ] (this may take a couple minutes)");
     ensure_working_rpmdb();
-    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental git-extras');
+    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental git-extras perl-Net-DNS');
 
     return 1;
 }
