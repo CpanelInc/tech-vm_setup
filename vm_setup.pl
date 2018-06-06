@@ -15,7 +15,12 @@ use Term::ANSIColor qw(:constants);
 # reset colors to default when done
 $Term::ANSIColor::AUTORESET = 1;
 
-my $VERSION = '1.0.5';
+# VMS should only be ran as root
+if ( $< != 0 ) {
+    die "VMS must be run as root\n";
+}
+
+my $VERSION = '1.0.6';
 
 # declare variables for script options and handle them
 my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER, $SKIP );
