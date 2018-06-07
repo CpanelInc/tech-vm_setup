@@ -222,6 +222,7 @@ exit;
 #
 # system_formatted() - takes a system call as an argument and uses open3() to make the syscall
 # add_motd() - appends all arguments to '/etc/motd'
+# add_bashrc() - appends all arguments to '/root/.bashrc'
 # get_sysinfo() - populates %sysinfo hash with data
 # install_packages() - installs some useful yum packages
 # set_hostname() - returns the new hostname of the server after potentially setting it
@@ -312,7 +313,9 @@ sub _process_whmapi_output {
 
         if ( $line =~ /^\s*token:/ ) {
             ( $key, $value ) = split /:/, $line;
-            add_motd( "Token name - all_access: " . $value . "\n" );
+            chomp($value);
+            my $text = q [echo "Token name - all_access:  ];
+            add_bashrc( $text, $value, "\"\necho\n" );
         }
     }
 
@@ -484,6 +487,15 @@ sub _genpw {
 
     my $gen = String::Random->new();
     return $gen->randregex('\w{25}');
+}
+
+# appends argument(s) to the end of /etc/.bashrc
+sub add_bashrc {
+    open( my $fh, ">>", '/root/.bashrc' ) or die $!;
+    print $fh "@_\n";
+    close $fh;
+
+    return 1;
 }
 
 # appends argument(s) to the end of /etc/motd
@@ -1283,11 +1295,7 @@ sub print_command {
 # adds two options to '/root/.bashrc' to allow for unlimited bash history
 sub append_history_options_to_bashrc {
 
-    open( my $fh, ">>", '/root/.bashrc' ) or die $!;
-    print $fh "export HISTFILESIZE= \n";
-    print $fh "export HISTSIZE=\n";
-    close $fh;
-
+    add_bashrc("export HISTFILESIZE= \nexport HISTSIZE=\n");
     return 1;
 }
 
