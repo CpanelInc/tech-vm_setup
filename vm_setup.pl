@@ -133,6 +133,7 @@ configure_sysconfig_network($hostname);
 configure_wwwacct_conf( $hostname, $natip );
 configure_mainip($natip);
 configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
+disable_feature_showcase();
 configure_etc_hosts( $hostname, $ip );
 
 append_history_options_to_bashrc();
@@ -249,6 +250,7 @@ exit;
 # configure_sysconfig_network() - ensure '/etc/sysconfig/network' has proper contents
 # configure_mainip() - ensure '/var/cpanel/mainip' has proper contents
 # configure_whostmgrft() - touch '/etc/.whostmgrft' to skip initial WHM setup
+# disable_feature_showcase() - touch '/var/cpanel/activate/features/disable_feature_showcase' to disable the feature showcase
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
@@ -566,6 +568,7 @@ sub print_help_and_exit {
     print_status("- Sets hostname");
     print_status("- Updates /var/cpanel/cpanel.config (Tweak Settings)");
     print_status("- Performs basic setup wizard");
+    print_status("- Disables feature showcase");
     print_status("- Fixes /etc/hosts");
     print_status("- Fixes screen permissions");
     print_status("- Sets local mysql password to ensure mysql access");
@@ -811,6 +814,12 @@ sub configure_mainip {
       or die $!;
     print $fh "$nat";
     close($fh);
+    return 1;
+}
+
+# touches '/var/cpanel/activate/features/disable_feature_showcase'
+sub disable_feature_showcase {
+    _create_touch_file('/var/cpanel/activate/features/disable_feature_showcase');
     return 1;
 }
 
