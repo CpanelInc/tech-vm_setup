@@ -20,47 +20,29 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '1.0.6';
+my $VERSION = '1.0.7';
 
 # declare variables for script options and handle them
-my ( $HELP, $VERBOSE, $FULL, $FAST, $FORCE, $CLTRUE, $SKIPYUM, $SKIPHOSTNAME, $HOSTNAME, $TIER, $SKIP );
-my ( $CLAM, $MUNIN, $SOLR, $QUOTA, $PDNS );
-my @BASHURL;
-GetOptions(
-    "help"          => \$HELP,
-    "verbose"       => \$VERBOSE,
-    "full"          => \$FULL,
-    "fast"          => \$FAST,
-    "force"         => \$FORCE,
-    "installcl"     => \$CLTRUE,
-    "skipyum"       => \$SKIPYUM,
-    "skiphostname"  => \$SKIPHOSTNAME,
-    "hostname=s"    => \$HOSTNAME,
-    "tier=s"        => \$TIER,
-    "skip"          => \$SKIP,
-    "clam"          => \$CLAM,
-    "munin"         => \$MUNIN,
-    "solr"          => \$SOLR,
-    "enable-quotas" => \$QUOTA,
-    "pdns"          => \$PDNS,
-    "bashurl=s"     => \@BASHURL,
-) or die($!);
+my @bashurl;
+my %opts = ( 'bashurl' => \@bashurl );
+GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'installcl', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s' )
+  or die($!);
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
 # if it is setup, then it is like passing the following options
-if ($SKIP) {
-    $FAST         = 1;
-    $SKIPYUM      = 1;
-    $SKIPHOSTNAME = 1;
+if ( exists $opts{skip} ) {
+    $opts{fast}         = 1;
+    $opts{skipyum}      = 1;
+    $opts{skiphostname} = 1;
 }
 
 # do not allow the script to run if mutually exclusive arguments are passed
-if ( defined $SKIPHOSTNAME && defined $HOSTNAME ) {
+if ( exists $opts{skiphostname} && exists $opts{hostname} ) {
     die "script usage:  skiphostname and hostname arguments are mutually exclusive\n";
 }
 
 # --fast and --full should be mutually exclusive arguments
-if ( defined $FULL && defined $FAST ) {
+if ( exists $opts{full} && exists $opts{fast} ) {
     die "script usage:  fast and full arguments are mutually exclusive\n";
 }
 
@@ -80,7 +62,7 @@ print_vms("Version: $VERSION\n");
 # help option should be processed first to ensure that nothing is erroneously executed if this option is passed
 # converted this to a function to make main less clunky and it may be of use if we add more script arguments in the future
 #  ex:  or die print_help_and_exit();
-if ($HELP) {
+if ( exists $opts{help} ) {
     print_help_and_exit();
 }
 
@@ -99,7 +81,7 @@ setup_resolv_conf();
 install_packages();
 set_screen_perms();
 
-configure_etc_cpupdate_conf() if ($TIER);
+configure_etc_cpupdate_conf() if ( exists $opts{tier} );
 
 # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
 # on new openstack builds
@@ -168,7 +150,7 @@ disable_cphulkd();
 handle_additional_options();
 
 # rather than remove the --installcl option, I am putting in a some temp code saying to look for it in a future release
-if ($CLTRUE) {
+if ( exists $opts{installcl} ) {
     print_info("The option to install CloudLinux (--installcl) has been temporarily removed.  Please look for it to return in a future release.  Thank you!\n");
 }
 
@@ -422,7 +404,7 @@ sub print_formatted {
             }
 
             append_vms_log($line);
-            if ($VERBOSE) {
+            if ( exists $opts{verbose} ) {
                 print $line;
             }
         }
@@ -445,7 +427,7 @@ sub system_formatted {
     my $retval = 1;
 
     append_vms_log("\nCommand:  $cmd\n");
-    if ($VERBOSE) {
+    if ( exists $opts{verbose} ) {
         print_command($cmd);
     }
 
@@ -555,7 +537,7 @@ sub print_help_and_exit {
     print_status("--clam:  install ClamAV regardless of --fast/--skip option being passed");
     print_status("--munin:  install Munin regardless of --fast/--skip option being passed");
     print_status("--solr:  install Solr regardless of --fast/--skip option being passed");
-    print_status("--enable-quotas:  enable quotas regardless of --fast/--skip option being passed");
+    print_status("--quota:  enable quotas regardless of --fast/--skip option being passed");
     print_status("--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed");
     print "\n";
     print_info("--skiphostname and --hostname=\$hostname are mutually exclusive");
@@ -591,12 +573,12 @@ sub print_help_and_exit {
 # create lock file otherwise
 sub handle_lock_file {
     if ( -e "/root/vmsetup.lock" ) {
-        if ( !$FORCE ) {
-            print_warn("/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...");
-            exit;
+        if ( exists $opts{force} ) {
+            print_info("/root/vmsetup.lock exists. --force passed. Ignoring...");
         }
         else {
-            print_info("/root/vmsetup.lock exists. --force passed. Ignoring...");
+            print_warn("/root/vmsetup.lock exists. This script may have already been run. Use --force to bypass. Exiting...");
+            exit;
         }
     }
     else {
@@ -757,7 +739,7 @@ sub _cpanel_gensysinfo {
 sub install_packages {
 
     # do not install packages if skipyum option is passed
-    if ($SKIPYUM) {
+    if ( exists $opts{skipyum} ) {
         print_info("skipyum option passed, no packages were installed");
         return 1;
     }
@@ -922,7 +904,7 @@ sub create_account {
 
     $rndpass = _genpw();
 
-    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited reseller=$is_reseller owner=$owner") and not $FORCE ) {
+    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited reseller=$is_reseller owner=$owner") and not exists $opts{force} ) {
         print_warn("Failed to create account: $user.tld");
         return 1;
     }
@@ -943,7 +925,7 @@ sub create_primary_account {
     # create test account
     print_vms("Creating test account - cptest");
     $rndpass = _genpw();
-    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not $FORCE ) {
+    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not exists $opts{force} ) {
         print_warn(q[Failed to create primary account (cptest.tld), skipping additional configurations for the account]);
         return 1;
     }
@@ -987,13 +969,13 @@ sub add_custom_bashrc_to_bash_profile {
     open( my $fh, ">>", '/root/.bash_profile' ) or die $!;
 
     # returns -1 if the user did not define this argument
-    if ( $#BASHURL != -1 ) {
+    if ( $#bashurl != -1 ) {
 
         # allows for the user to only issue --bashurl and provide a comma separated list as well
-        @BASHURL = split( /,/, join( ',', @BASHURL ) );
+        @bashurl = split( /,/, join( ',', @bashurl ) );
 
         # iterate through the list of URLs and append them to '/root/.bash_profile'
-        foreach my $url (@BASHURL) {
+        foreach my $url (@bashurl) {
             $txt = q[ source /dev/stdin <<< "$(curl -s ] . $url . q[ )" ];
             print $fh "$txt\n";
         }
@@ -1031,7 +1013,7 @@ sub clam_and_munin_options {
     my $answer     = 0;
     my $check_rpms = 0;
 
-    if ($CLAM) {
+    if ( exists $opts{clam} ) {
         $answer = 'y';
     }
     else {
@@ -1043,7 +1025,7 @@ sub clam_and_munin_options {
         system_formatted('/usr/local/cpanel/scripts/update_local_rpm_versions --edit target_settings.clamav installed');
     }
 
-    if ($MUNIN) {
+    if ( exists $opts{munin} ) {
         $answer = 'y';
     }
     else {
@@ -1068,7 +1050,7 @@ sub solr_option {
 
     my $answer = 0;
 
-    if ($SOLR) {
+    if ( exists $opts{solr} ) {
         $answer = 'y';
     }
     else {
@@ -1086,14 +1068,14 @@ sub quotas_option {
 
     my $answer = 0;
 
-    if ($QUOTA) {
+    if ( exists $opts{quota} ) {
         $answer = 'y';
     }
     else {
         $answer = get_answer("would you like to enable quotas? [n]: ");
     }
     if ( $answer eq "y" ) {
-        $QUOTA = 1;    # so that clean_exit() knows that quotas were enabled
+        $opts{quota} = 1;    # so that clean_exit() knows that quotas were enabled
         print_vms("Enabling quotas (This may take a few minutes)");
         system_formatted('/usr/local/cpanel/scripts/fixquotas');
     }
@@ -1105,7 +1087,7 @@ sub pdns_option {
 
     my $answer = 0;
 
-    if ($PDNS) {
+    if ( exists $opts{pdns} ) {
         $answer = 'y';
     }
     else {
@@ -1137,10 +1119,10 @@ sub get_answer {
 
     my $question = shift;
 
-    if ($FAST) {
+    if ( exists $opts{fast} ) {
         return 'n';
     }
-    elsif ($FULL) {
+    elsif ( exists $opts{full} ) {
         return 'y';
     }
     else {
@@ -1168,7 +1150,7 @@ sub clean_exit {
     # this is ugly and not helpful in regards to script output
     # _cat_file('/etc/motd');
     print "\n";
-    if ( $CLTRUE || $QUOTA ) {
+    if ( exists $opts{installcl} || exists $opts{quota} ) {
         print_info("A reboot is required for all the changes performed by this script to take affect!!!\n");
     }
     else {
@@ -1325,11 +1307,11 @@ sub set_hostname {
 
     my $hn = shift;
 
-    if ( defined $HOSTNAME ) {
-        $hn = $HOSTNAME;
+    if ( exists $opts{hostname} ) {
+        $hn = $opts{hostname};
     }
 
-    if ( not $SKIPHOSTNAME ) {
+    if ( not exists $opts{skiphostname} ) {
         print_vms("Setting hostname to $hn");
 
         # use whmapi1 to set hostname so that we get a return value
@@ -1356,7 +1338,7 @@ sub configure_etc_cpupdate_conf {
     print_vms("Updating /etc/cpupdate.conf");
     open( my $fh, '>', '/etc/cpupdate.conf' )
       or die $!;
-    print $fh "CPANEL=$TIER\n";
+    print $fh "CPANEL=$opts{tier}\n";
     print $fh "RPMUP=daily\n";
     print $fh "SARULESUP=daily\n";
     print $fh "STAGING_DIR=/usr/local/cpanel\n";
