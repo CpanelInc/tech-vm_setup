@@ -25,7 +25,7 @@ my $VERSION = '1.0.7';
 # declare variables for script options and handle them
 my @bashurl;
 my %opts = ( 'bashurl' => \@bashurl );
-GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'installcl', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s' )
+GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s' )
   or die($!);
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
@@ -50,9 +50,6 @@ if ( exists $opts{full} && exists $opts{fast} ) {
 # both of these variables are used during the CL install portion
 # of script and their necessity should be reviewed during TECH-407
 my $VMS_LOG = '/var/log/vm_setup.log';
-
-my $InstPHPSelector = 0;
-my $InstCageFS      = 0;
 
 # print header
 print "\n";
@@ -148,48 +145,6 @@ disable_cphulkd();
 # user has the option to make install additional components such as clamav
 # this takes user input if necessary and executes these two processes if desired
 handle_additional_options();
-
-# rather than remove the --installcl option, I am putting in a some temp code saying to look for it in a future release
-if ( exists $opts{installcl} ) {
-    print_info("The option to install CloudLinux (--installcl) has been temporarily removed.  Please look for it to return in a future release.  Thank you!\n");
-}
-
-##############################  OLD CL CODE WITH CloudLinux KEY removed ##########
-# install CloudLinux
-# this logic should be moved to a subroutine and
-# it will be revisited in TECH-407
-
-# looks like this logic should work for now
-# from a CL server
-# # grep ^rpm_dist /var/cpanel/sysinfo.config
-# rpm_dist=cloudlinux
-#if ( not $FORCE and $sysinfo{'ostype'} eq "cloudlinux" ) {
-#    print_warn("CloudLinux already detected, no need to install CloudLinux\n");
-
-# No need to install CloudLinux. It's already installed
-#    $CLTRUE = 0;
-#}
-#if ($CLTRUE) {
-
-# Remove /var/cpanel/nocloudlinux touch file (if it exists)
-#    if ( -e ("/var/cpanel/nocloudlinux") ) {
-#        print_vms("Removing /var/cpanel/nocloudlinux touch file");
-#        unlink("/var/cpanel/nocloudlinux");
-#    }
-#    print_vms("Downloading cldeploy shell file");
-#    system_formatted("wget http://repo.cloudlinux.com/cloudlinux/sources/cln/cldeploy");
-#    print_vms("Executing cldeploy shell file (Note: this runs a upcp and can take time)");
-#    my $clDeploy = qx[ echo | sh cldeploy -k token_goes_here; echo ];
-#    print_vms("Installing CageFS");
-#    system_formatted("echo | yum -y install cagefs");
-#    print_vms("Initializing CageFS");
-#    system_formatted("echo | cagefsctl --init");
-#    print_vms("Installing PHP Selector");
-#    system_formatted("echo | yum -y groupinstall alt-php");
-#    print_vms("Updating CageFS/LVE Manager");
-#    system_formatted("echo | yum -y update cagefs lvemanager");
-#}
-##############################  OLD CL CODE WITH CloudLinux KEY removed ##########
 
 # restart cpsrvd
 restart_cpsrvd();
@@ -526,7 +481,6 @@ sub print_help_and_exit {
     print_status("--fast: Skips all optional setup functions");
     print_status("--verbose: pretty self explanatory");
     print_status("--full: Passes yes to all optional setup functions");
-    print_status("--installcl: Installs CloudLinux(can take a while and requires reboot)");
     print_status("--skipyum:  Skips installing yum packages");
     print_status("--skiphostname:  Skips setting the hostname");
     print_status("--hostname=\$hostname:  allows user to provide a hostname for the system");
@@ -563,7 +517,6 @@ sub print_help_and_exit {
     print_status("- This includes a script that will allow for git auto-completion");
     print_status("- Installs ClamAV, Munin, and Solr (optional)");
     print_status("- Switches the nameserver to PowerDNS (optional)");
-    print_status("- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)");
     exit;
 }
 
@@ -1150,7 +1103,7 @@ sub clean_exit {
     # this is ugly and not helpful in regards to script output
     # _cat_file('/etc/motd');
     print "\n";
-    if ( exists $opts{installcl} || exists $opts{quota} ) {
+    if ( exists $opts{quota} ) {
         print_info("A reboot is required for all the changes performed by this script to take affect!!!\n");
     }
     else {
