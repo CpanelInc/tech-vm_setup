@@ -20,7 +20,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '1.0.8';
+my $VERSION = '1.0.9';
 
 # declare variables for script options and handle them
 my @bashurl;
