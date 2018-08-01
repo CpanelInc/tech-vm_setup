@@ -55,7 +55,8 @@ my $VMS_LOG = '/var/log/vm_setup.log';
 
 __PACKAGE__->run(@ARGV) unless caller();
 
-return 1;
+# Every below this should be a subroutine
+1;
 
 sub run {
 
