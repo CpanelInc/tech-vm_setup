@@ -53,114 +53,114 @@ if ( exists $opts{full} && exists $opts{fast} ) {
 # of script and their necessity should be reviewed during TECH-407
 my $VMS_LOG = '/var/log/vm_setup.log';
 
-__PACKAGE__->run( @ARGV ) unless caller();
+__PACKAGE__->run(@ARGV) unless caller();
 
 return 1;
 
 sub run {
 
-# print header
-print "\n";
-print_vms("VM Server Setup Script");
-print_vms("Version: $VERSION\n");
+    # print header
+    print "\n";
+    print_vms("VM Server Setup Script");
+    print_vms("Version: $VERSION\n");
 
-# help option should be processed first to ensure that nothing is erroneously executed if this option is passed
-# converted this to a function to make main less clunky and it may be of use if we add more script arguments in the future
-#  ex:  or die print_help_and_exit();
-if ( exists $opts{help} ) {
-    print_help_and_exit();
-}
+    # help option should be processed first to ensure that nothing is erroneously executed if this option is passed
+    # converted this to a function to make main less clunky and it may be of use if we add more script arguments in the future
+    #  ex:  or die print_help_and_exit();
+    if ( exists $opts{help} ) {
+        print_help_and_exit();
+    }
 
-# vm_setup depends on multiple cPanel api calls
-# if the license is invalid, we should immediately die
-check_license();
+    # vm_setup depends on multiple cPanel api calls
+    # if the license is invalid, we should immediately die
+    check_license();
 
-# we should check for the lock file and exit if force argument not passed right after checking for help
-# to ensure that no work is performed in this scenario
-handle_lock_file();
+    # we should check for the lock file and exit if force argument not passed right after checking for help
+    # to ensure that no work is performed in this scenario
+    handle_lock_file();
 
-create_vms_log_file();
+    create_vms_log_file();
 
-setup_resolv_conf();
+    setup_resolv_conf();
 
-install_packages();
-set_screen_perms();
+    install_packages();
+    set_screen_perms();
 
-configure_etc_cpupdate_conf() if ( exists $opts{tier} );
+    configure_etc_cpupdate_conf() if ( exists $opts{tier} );
 
-# '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
-# on new openstack builds
-# build cpnat to ensure that '/var/cpanel/cpnat' has the correct IPs in it
-print_vms("Building cpnat");
-system_formatted("/usr/local/cpanel/scripts/build_cpnat");
+    # '/vat/cpanel/cpnat' is sometimes populated with incorrect IP information
+    # on new openstack builds
+    # build cpnat to ensure that '/var/cpanel/cpnat' has the correct IPs in it
+    print_vms("Building cpnat");
+    system_formatted("/usr/local/cpanel/scripts/build_cpnat");
 
-# use a hash for system information
-my %sysinfo = (
-    "ostype"    => undef,
-    "osversion" => undef,
-    "tier"      => undef,
-    "hostname"  => undef,
-    "ip"        => undef,
-    "natip"     => undef,
-);
+    # use a hash for system information
+    my %sysinfo = (
+        "ostype"    => undef,
+        "osversion" => undef,
+        "tier"      => undef,
+        "hostname"  => undef,
+        "ip"        => undef,
+        "natip"     => undef,
+    );
 
-# hostname is in the format of 'os.cptier.tld'
-get_sysinfo( \%sysinfo );
+    # hostname is in the format of 'os.cptier.tld'
+    get_sysinfo( \%sysinfo );
 
-my $natip = $sysinfo{'natip'};
-my $ip    = $sysinfo{'ip'};
+    my $natip = $sysinfo{'natip'};
+    my $ip    = $sysinfo{'ip'};
 
-# set_hostname() will return the value of the new hostname for the server
-# and the value may not be the same as what is in %sysinfo
-my $hostname = set_hostname( $sysinfo{'hostname'} );
+    # set_hostname() will return the value of the new hostname for the server
+    # and the value may not be the same as what is in %sysinfo
+    my $hostname = set_hostname( $sysinfo{'hostname'} );
 
-# edit files with the new hostname
-configure_99_hostname_cfg($hostname);
-configure_sysconfig_network($hostname);
-configure_wwwacct_conf( $hostname, $natip );
-configure_mainip($natip);
-configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
-disable_feature_showcase();
-configure_etc_hosts( $hostname, $ip );
+    # edit files with the new hostname
+    configure_99_hostname_cfg($hostname);
+    configure_sysconfig_network($hostname);
+    configure_wwwacct_conf( $hostname, $natip );
+    configure_mainip($natip);
+    configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
+    disable_feature_showcase();
+    configure_etc_hosts( $hostname, $ip );
 
-append_history_options_to_bashrc();
-add_custom_bashrc_to_bash_profile();
+    append_history_options_to_bashrc();
+    add_custom_bashrc_to_bash_profile();
 
-# set env variable
-# I am not entirely sure what we need this for or if it is even needed
-# leaving for now but will need to be reevaluated in later on
-local $ENV{'REMOTE_USER'} = 'root';
+    # set env variable
+    # I am not entirely sure what we need this for or if it is even needed
+    # leaving for now but will need to be reevaluated in later on
+    local $ENV{'REMOTE_USER'} = 'root';
 
-# ensure mysql is running and accessible before creating account
-set_local_mysql_root_password();
+    # ensure mysql is running and accessible before creating account
+    set_local_mysql_root_password();
 
-# header message for '/etc/motd' placed here to ensure it is added before anything else
-add_motd("\n\nVM Setup Script created the following test accounts:\n");
+    # header message for '/etc/motd' placed here to ensure it is added before anything else
+    add_motd("\n\nVM Setup Script created the following test accounts:\n");
 
-create_api_token();
+    create_api_token();
 
-# create cptest account along with a test email account and database
-create_primary_account();
+    # create cptest account along with a test email account and database
+    create_primary_account();
 
-# create a reseller account and an account owned by the reseller account
-if ( not create_account( "reseller", 1, "root" ) ) {
-    create_account( "owned", 0, "reseller" );
-}
+    # create a reseller account and an account owned by the reseller account
+    if ( not create_account( "reseller", 1, "root" ) ) {
+        create_account( "owned", 0, "reseller" );
+    }
 
-update_tweak_settings();
-disable_cphulkd();
+    update_tweak_settings();
+    disable_cphulkd();
 
-# user has the option to make install additional components such as clamav
-# this takes user input if necessary and executes these two processes if desired
-handle_additional_options();
+    # user has the option to make install additional components such as clamav
+    # this takes user input if necessary and executes these two processes if desired
+    handle_additional_options();
 
-# restart cpsrvd
-restart_cpsrvd();
+    # restart cpsrvd
+    restart_cpsrvd();
 
-final_words();
+    final_words();
 
-# since this is now a modulino, return instead of exit
-return 1;
+    # since this is now a modulino, return instead of exit
+    return 1;
 }
 
 ##############  END OF MAIN ##########################
@@ -1091,7 +1091,7 @@ sub restart_cpsrvd {
     return 1;
 }
 
-# advise whether a reboot is required or if the user just needs to re-login 
+# advise whether a reboot is required or if the user just needs to re-login
 sub final_words {
 
     print "\n";
