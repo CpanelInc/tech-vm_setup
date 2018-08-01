@@ -2,6 +2,8 @@
 
 # vm_setup.pl
 
+package VMS;
+
 use strict;
 use warnings;
 use Getopt::Long;
@@ -20,7 +22,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '1.0.9';
+my $VERSION = '2.0.0';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -50,6 +52,12 @@ if ( exists $opts{full} && exists $opts{fast} ) {
 # both of these variables are used during the CL install portion
 # of script and their necessity should be reviewed during TECH-407
 my $VMS_LOG = '/var/log/vm_setup.log';
+
+__PACKAGE__->run( @ARGV ) unless caller();
+
+return 1;
+
+sub run {
 
 # print header
 print "\n";
@@ -149,10 +157,11 @@ handle_additional_options();
 # restart cpsrvd
 restart_cpsrvd();
 
-# exit cleanly
-clean_exit();
+final_words();
 
-exit;
+# since this is now a modulino, return instead of exit
+return 1;
+}
 
 ##############  END OF MAIN ##########################
 #
@@ -179,7 +188,7 @@ exit;
 # solr_option() - offer to install solr and install it if the user desires
 # quotas_option() - offer to enable quotas and run fixquotas if the user desires
 # pdns_option() - offer to switch to use PowerDNS and switch the nameserver to PowerDNS if the user desires
-# clean_exit() - print some helpful output for the user before exiting
+# final_words() - print some helpful output for the user before exiting
 #
 # setup_resolv_conf() - sets '/etc/resolv.conf' to use cPanel resolvers
 # configure_99_hostname_cfg() - ensure '/etc/cloud/cloud.cfg.d/99_hostname.cfg' has proper contents
@@ -1016,7 +1025,7 @@ sub quotas_option {
         $answer = get_answer("would you like to enable quotas? [n]: ");
     }
     if ( $answer eq "y" ) {
-        $opts{quota} = 1;    # so that clean_exit() knows that quotas were enabled
+        $opts{quota} = 1;    # so that final_words() knows that quotas were enabled
         print_vms("Enabling quotas (This may take a few minutes)");
         system_formatted('/usr/local/cpanel/scripts/fixquotas');
     }
@@ -1082,8 +1091,8 @@ sub restart_cpsrvd {
     return 1;
 }
 
-# exit cleanly
-sub clean_exit {
+# advise whether a reboot is required or if the user just needs to re-login 
+sub final_words {
 
     print "\n";
     print_vms("Setup complete\n");
@@ -1098,7 +1107,7 @@ sub clean_exit {
         print_info("You should log out and back in.\n");
     }
 
-    exit;
+    return 1;
 }
 
 # takes filename as argument and prints output of file to STDOUT
