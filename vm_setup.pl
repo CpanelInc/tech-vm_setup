@@ -456,7 +456,7 @@ sub _stdin {
 sub print_header {
     my $text = shift // '';
 
-    return if ($text eq '');
+    return if ( $text eq '' );
 
     print BOLD CYAN "$text\n";
     return;
@@ -466,7 +466,7 @@ sub print_header {
 sub print_status {
     my $text = shift // '';
 
-    return if ($text eq '');
+    return if ( $text eq '' );
 
     print YELLOW "$text\n";
     return;
