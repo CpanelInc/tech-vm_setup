@@ -454,18 +454,22 @@ sub _stdin {
 
 # used to make print_help_and_exit() more presentable
 sub print_header {
-    my $text = shift;
-    print BOLD CYAN "$text\n";
+    my $text = shift // '';
 
-    return 1;
+    return if ($text eq '');
+
+    print BOLD CYAN "$text\n";
+    return;
 }
 
 # used to make print_help_and_exit() more presentable
 sub print_status {
-    my $text = shift;
-    print YELLOW "$text\n";
+    my $text = shift // '';
 
-    return 1;
+    return if ($text eq '');
+
+    print YELLOW "$text\n";
+    return;
 }
 
 # print script usage information and exit
