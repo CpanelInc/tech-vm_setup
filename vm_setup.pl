@@ -1185,35 +1185,45 @@ sub append_vms_log {
 }
 
 sub print_vms {
-    my $text = shift;
+    my $text = shift // '';
+    return if $text eq '';
+
     print BOLD BRIGHT_BLUE ON_BLACK '[VMS] * ';
     print BOLD WHITE ON_BLACK "$text\n";
     return;
 }
 
 sub print_warn {
-    my $text = shift;
+    my $text = shift // '';
+    return if $text eq '';
+
     print BOLD RED ON_BLACK '[WARN] * ';
     print BOLD WHITE ON_BLACK "$text\n";
     return;
 }
 
 sub print_info {
-    my $text = shift;
+    my $text = shift // '';
+    return if $text eq '';
+
     print BOLD GREEN ON_BLACK '[INFO] * ';
     print BOLD WHITE ON_BLACK "$text\n";
     return;
 }
 
 sub print_question {
-    my $text = shift;
+    my $text = shift // '';
+    return if $text eq '';
+
     print BOLD CYAN ON_BLACK '[QUESTION] * ';
     print BOLD WHITE ON_BLACK "$text";
     return;
 }
 
 sub print_command {
-    my $text = shift;
+    my $text = shift // '';
+    return if $text eq '';
+
     print BOLD BRIGHT_YELLOW ON_BLACK '[COMMAND] * ';
     print BOLD WHITE ON_BLACK "$text\n";
     return;
