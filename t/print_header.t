@@ -14,25 +14,21 @@ require_ok('VMS');
 
 subtest 'no arguments' => sub {
     trap { VMS::print_header() };
-    is( $trap->exit,   undef, 'correct return value' );
     is( $trap->stdout, '',    'no string printed when there are no args passed' );
 };
 
 subtest 'empty string' => sub {
     trap { VMS::print_header('') };
-    is( $trap->exit,   undef, 'correct return value' );
     is( $trap->stdout, '',    'no string printed when an empty string is passed' );
 };
 
 subtest 'one argument' => sub {
     trap { VMS::print_header('Hello World') };
-    is( $trap->exit, undef, 'correct return value' );
     like( $trap->stdout, qr/Hello World/, 'print the first arg' );
 };
 
 subtest 'two arguments' => sub {
     trap { VMS::print_header( 'Hello', 'World' ) };
-    is( $trap->exit, undef, 'correct return value' );
     like( $trap->stdout, qr/Hello/, 'print the first arg' );
     unlike( $trap->stdout, qr/World/, 'do not print the second arg' );
 };
@@ -42,7 +38,5 @@ my $long_text =
 
 subtest 'long argument' => sub {
     trap { VMS::print_header($long_text) };
-    is( $trap->exit, undef, 'correct return value' );
     like( $trap->stdout, qr/it has been ceased/, 'catches the end of the text' );
 };
-
