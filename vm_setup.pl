@@ -268,7 +268,7 @@ sub _process_whmapi_output {
     return 0;
 }
 
-# called by process_output() and processes the output of UAPI calls to ensure the call copmleted successfully
+# called by process_output() and processes the output of UAPI calls to ensure the call completed successfully
 # takes the output of a UAPI call as an argument (array)
 # returns 0 if the call succeeds
 # otherwise, it returns a string that contains the reason that the call failed
