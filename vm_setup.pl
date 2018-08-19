@@ -227,7 +227,6 @@ sub run {
 # _get_cpanel_tier - called by get_sysinfo() to populate %sysinfo hash with the cPanel tier
 # _get_ostype_and_version() - called by get_sysinfo() to populate %sysinfo hash with the ostype and osversion
 # _cpanel_getsysinfo() - called by get_sysinfo() to ensure that '/var/cpanel/sysinfo.config' is up to date
-# _cat_file() - takes filename as arg and mimics bash cat command
 # _check_license() - works much like system_formatted() but is only intended for the license check
 # _check_for_failure() - looks at output of the license check and dies if it fails
 # _process_whmapi_output() - called by process_output() and processes the output of whmapi1 calls to ensure the call completed successfully and to check for token output
@@ -1102,8 +1101,6 @@ sub final_words {
     print "\n";
     print_vms("Setup complete\n");
 
-    # this is ugly and not helpful in regards to script output
-    # _cat_file('/etc/motd');
     print "\n";
     if ( exists $opts{quota} ) {
         print_info("A reboot is required for all the changes performed by this script to take affect!!!\n");
@@ -1111,22 +1108,6 @@ sub final_words {
     else {
         print_info("You should log out and back in.\n");
     }
-
-    return;
-}
-
-# takes filename as argument and prints output of file to STDOUT
-sub _cat_file {
-
-    my $fn = shift;
-    open( my $fh, '<', $fn )
-      or die $!;
-
-    while (<$fh>) {
-        print $_;
-    }
-
-    close $fh;
 
     return;
 }
