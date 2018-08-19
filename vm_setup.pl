@@ -1154,7 +1154,7 @@ sub _check_license {
 # takes a line of output as an argument
 sub _check_for_failure {
 
-    my $line = shift;
+    my $line = shift // '';
 
     # die if the license is not valid
     die("cPanel license is not currently valid.\n") if ( $line =~ /Update Failed!/ );
