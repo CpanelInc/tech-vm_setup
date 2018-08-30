@@ -14,12 +14,12 @@ require_ok('VMS');
 
 subtest 'no arguments' => sub {
     trap { VMS::print_header() };
-    is( $trap->stdout, '',    'no string printed when there are no args passed' );
+    is( $trap->stdout, '', 'no string printed when there are no args passed' );
 };
 
 subtest 'empty string' => sub {
     trap { VMS::print_header('') };
-    is( $trap->stdout, '',    'no string printed when an empty string is passed' );
+    is( $trap->stdout, '', 'no string printed when an empty string is passed' );
 };
 
 subtest 'one argument' => sub {
