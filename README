@@ -7,29 +7,36 @@ Usage: perl vm_setup.pl [options]
 
 Description: Performs a number of functions to prepare VMs (on service.cpanel.ninja) for immediate use. 
 
-Options: 
--------------- 
+Options:
+--------------
 --force: Ignores previous run check
 --fast: Skips all optional setup functions
 --verbose: pretty self explanatory
 --full: Passes yes to all optional setup functions
---installcl: Installs CloudLinux(can take a while and requires reboot)
 --skipyum:  Skips installing yum packages
 --skiphostname:  Skips setting the hostname
 --hostname=$hostname:  allows user to provide a hostname for the system
 --tier=$cpanel_tier:  allows user to provide a cPanel update tier for the server to be set to and enables daily updates
 --bashurl=$URL_to_bash_file:  allows user to provide the URL to their own bashrc file rather than using the script's default one located at https://ssp.cpanel.net/aliases/aliases.txt
                               this option can be passed multiple times for more than one bashrc file and/or accept a ',' separated list as well.
+--skip:  shortcut to passing --fast --skipyum --skiphostname
+--clam:  install ClamAV regardless of --fast/--skip option being passed
+--munin:  install Munin regardless of --fast/--skip option being passed
+--solr:  install Solr regardless of --fast/--skip option being passed
+--quota:  enable quotas regardless of --fast/--skip option being passed
+--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed
 
 Note: --skiphostname and --hostname=$hostname are mutually exclusive
+Note: --fast and --full arguments are mutually exclusive
 
-Full list of things this does: 
--------------- 
+Full list of things this does:
+--------------
 - Installs common/useful packages
 - Install the ea4-experimental repository and disables it
 - Sets hostname
 - Updates /var/cpanel/cpanel.config (Tweak Settings)
 - Performs basic setup wizard
+- Disables feature showcase
 - Fixes /etc/hosts
 - Fixes screen permissions
 - Sets local mysql password to ensure mysql access
@@ -39,7 +46,6 @@ Full list of things this does:
 - Updates motd
 - Sets unlimited bash history
 - Creates /root/.bash_profile with helpful aliases
-- Runs upcp (optional)
-- Runs check_cpanel_rpms --fix (optional)
-- Downloads and runs cldeploy (Installs CloudLinux) --installcl (optional)
-
+- This includes a script that will allow for git auto-completion
+- Installs ClamAV, Munin, and Solr (optional)
+- Switches the nameserver to PowerDNS (optional)

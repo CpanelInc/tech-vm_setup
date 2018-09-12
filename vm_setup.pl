@@ -22,7 +22,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.2';
+my $VERSION = '2.0.3';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -556,7 +556,7 @@ sub _create_touch_file {
 sub setup_resolv_conf {
     print_vms("Adding resolvers");
     open( my $etc_resolv_conf, '>', '/etc/resolv.conf' )
-      or die $!;
+    or return print_warn("Unable to add resolvers: $!");
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
     close($etc_resolv_conf);
     return;
@@ -718,7 +718,7 @@ sub configure_99_hostname_cfg {
 
         # Now create a file in /etc/cloud/cloud.cfg.d/ called 99_hostname.cfg
         open( my $cloud_cfg, '>', '/etc/cloud/cloud.cfg.d/99_hostname.cfg' )
-          or die $!;
+          or return print_warn("Unable to modify /etc/cloud/cloud.cfg.d/99_hostname.cfg: $!");
         print $cloud_cfg "#cloud-config\n" . "hostname: $hn\n";
         close($cloud_cfg);
     }
@@ -734,7 +734,7 @@ sub configure_sysconfig_network {
     # set /etc/sysconfig/network
     print_vms("Updating /etc/sysconfig/network");
     open( my $etc_network, '>', '/etc/sysconfig/network' )
-      or die $!;
+      or return print_warn("Unable to modify /etc/sysconfig/network: $!");
     print $etc_network "NETWORKING=yes\n" . "NOZEROCONF=yes\n" . "HOSTNAME=$hn\n";
     close($etc_network);
     return;
@@ -747,7 +747,7 @@ sub configure_mainip {
 
     print_vms("Updating /var/cpanel/mainip");
     open( my $fh, '>', '/var/cpanel/mainip' )
-      or die $!;
+      or return print_warn("Unable to modify /var/cpanel/mainip: $!");
     print $fh "$nat";
     close($fh);
     return;
@@ -776,7 +776,7 @@ sub configure_wwwacct_conf {
     # correct wwwacct.conf
     print_vms("Correcting /etc/wwwacct.conf");
     open( my $fh, '>', '/etc/wwwacct.conf' )
-      or die $!;
+      or return print_warn("Unable to modify /etc/wwwacct.conf: $!");
     print $fh "HOST $hn\n";
     print $fh "ADDR $nat\n";
     print $fh "HOMEDIR /home\n";
@@ -811,7 +811,7 @@ sub configure_etc_hosts {
     # corrent /etc/hosts
     print_vms("Correcting /etc/hosts");
     open( my $fh, '>', '/etc/hosts' )
-      or die $!;
+        or return print_warn("Unable to modify /etc/hosts: $!");
     print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
     print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
     print $fh "$local_ip    $short_hn $hn\n";
@@ -920,7 +920,8 @@ sub add_custom_bashrc_to_bash_profile {
 
     my $txt;
     print_vms("Updating '/root/.bash_profile with help aliases");
-    open( my $fh, ">>", '/root/.bash_profile' ) or die $!;
+    open( my $fh, ">>", '/root/.bash_profile' )
+      or return print_warn("Unable to modify /root/.bash_profile: $!");
 
     # returns -1 if the user did not define this argument
     if ( $#bashurl != -1 ) {
@@ -1232,7 +1233,8 @@ sub print_command {
 # adds two options to '/root/.bashrc' to allow for unlimited bash history
 sub append_history_options_to_bashrc {
 
-    open( my $fh, ">>", '/root/.bashrc' ) or die $!;
+    open( my $fh, ">>", '/root/.bashrc' )
+      or return print_warn("Unable to modify /root/.bashrc: $!");
     print $fh "export HISTFILESIZE= \n";
     print $fh "export HISTSIZE=\n";
     close $fh;
@@ -1287,7 +1289,7 @@ sub configure_etc_cpupdate_conf {
 
     print_vms("Updating /etc/cpupdate.conf");
     open( my $fh, '>', '/etc/cpupdate.conf' )
-      or die $!;
+      or print_warn("Unable to modify /etc/cpupdate.conf: $!");
     print $fh "CPANEL=$opts{tier}\n";
     print $fh "RPMUP=daily\n";
     print $fh "SARULESUP=daily\n";
@@ -1305,10 +1307,8 @@ sub disable_ea4_experimental {
 
         print_vms("Installed and disabled EA4-experimental repository");
 
-        open( my $read, '<', '/etc/yum.repos.d/EA4-experimental.repo' )
-          or die $!;
-        open( my $write, '>', '/etc/yum.repos.d/EA4-experimental.repo.vmstmp' )
-          or die $!;
+        open( my $read, '<', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
+        open( my $write, '>', '/etc/yum.repos.d/EA4-experimental.repo.vmstmp' ) or die $!;
 
         while (<$read>) {
             if ( $_ =~ /^enabled/ ) {
@@ -1323,7 +1323,7 @@ sub disable_ea4_experimental {
         close $read;
         close $write;
 
-        rename( '/etc/yum.repos.d/EA4-experimental.repo.vmstmp', '/etc/yum.repos.d/EA4-experimental.repo' );
+        rename( '/etc/yum.repos.d/EA4-experimental.repo.vmstmp', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
     }
     return;
 }
