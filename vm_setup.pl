@@ -22,7 +22,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.3';
+my $VERSION = '2.0.4';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -122,6 +122,7 @@ sub run {
     configure_mainip($natip);
     configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
     disable_feature_showcase();
+    accept_eula();
     configure_etc_hosts( $hostname, $ip );
 
     append_history_options_to_bashrc();
@@ -197,6 +198,7 @@ sub run {
 # configure_mainip() - ensure '/var/cpanel/mainip' has proper contents
 # configure_whostmgrft() - touch '/etc/.whostmgrft' to skip initial WHM setup
 # disable_feature_showcase() - touch '/var/cpanel/activate/features/disable_feature_showcase' to disable the feature showcase
+# accept_eula() - new API call allows for accepting the EULA, use this to accept it:  https://documentation.cpanel.net/display/DD/WHM+API+1+Functions+-+accept_eula
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
@@ -331,7 +333,7 @@ sub process_output {
         }
     }
 
-    return;
+    return 1;
 }
 
 # logs the output of the system call
@@ -373,7 +375,7 @@ sub print_formatted {
 
     return 0 if not process_output(@output);
 
-    return;
+    return 1;
 }
 
 # takes a command to make a system call with as an argument
@@ -421,7 +423,7 @@ sub system_formatted {
     }
 
     else {
-        return;
+        return 1;
     }
 }
 
@@ -556,7 +558,7 @@ sub _create_touch_file {
 sub setup_resolv_conf {
     print_vms("Adding resolvers");
     open( my $etc_resolv_conf, '>', '/etc/resolv.conf' )
-    or return print_warn("Unable to add resolvers: $!");
+      or return print_warn("Unable to add resolvers: $!");
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
     close($etc_resolv_conf);
     return;
@@ -755,6 +757,7 @@ sub configure_mainip {
 
 # touches '/var/cpanel/activate/features/disable_feature_showcase'
 sub disable_feature_showcase {
+    print_vms("Disabling feature showcase");
     _create_touch_file('/var/cpanel/activate/features/disable_feature_showcase');
     return;
 }
@@ -811,7 +814,7 @@ sub configure_etc_hosts {
     # corrent /etc/hosts
     print_vms("Correcting /etc/hosts");
     open( my $fh, '>', '/etc/hosts' )
-        or return print_warn("Unable to modify /etc/hosts: $!");
+      or return print_warn("Unable to modify /etc/hosts: $!");
     print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
     print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
     print $fh "$local_ip    $short_hn $hn\n";
@@ -858,7 +861,7 @@ sub create_account {
 
     $rndpass = _genpw();
 
-    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited reseller=$is_reseller owner=$owner") and not exists $opts{force} ) {
+    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass maxpark=unlimited maxaddon=unlimited hasshell=1 reseller=$is_reseller owner=$owner") and not exists $opts{force} ) {
         print_warn("Failed to create account: $user.tld");
         return;
     }
@@ -879,7 +882,7 @@ sub create_primary_account {
     # create test account
     print_vms("Creating test account - cptest");
     $rndpass = _genpw();
-    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not exists $opts{force} ) {
+    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " maxpark=unlimited maxaddon=unlimited hasshell=1" ) and not exists $opts{force} ) {
         print_warn(q[Failed to create primary account (cptest.tld), skipping additional configurations for the account]);
         return;
     }
@@ -1307,7 +1310,7 @@ sub disable_ea4_experimental {
 
         print_vms("Installed and disabled EA4-experimental repository");
 
-        open( my $read, '<', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
+        open( my $read,  '<', '/etc/yum.repos.d/EA4-experimental.repo' )        or die $!;
         open( my $write, '>', '/etc/yum.repos.d/EA4-experimental.repo.vmstmp' ) or die $!;
 
         while (<$read>) {
@@ -1325,5 +1328,15 @@ sub disable_ea4_experimental {
 
         rename( '/etc/yum.repos.d/EA4-experimental.repo.vmstmp', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
     }
+    return;
+}
+
+# makes a whmapi1 call in order to accept the EULA
+# introduced in v76
+# https://documentation.cpanel.net/display/DD/WHM+API+1+Functions+-+accept_eula
+sub accept_eula {
+
+    print_vms("Accepting EULA");
+    system_formatted("/usr/local/cpanel/bin/whmapi1 accept_eula");
     return;
 }
