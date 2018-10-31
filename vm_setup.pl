@@ -558,7 +558,7 @@ sub _create_touch_file {
 sub setup_resolv_conf {
     print_vms("Adding resolvers");
     open( my $etc_resolv_conf, '>', '/etc/resolv.conf' )
-    or return print_warn("Unable to add resolvers: $!");
+      or return print_warn("Unable to add resolvers: $!");
     print $etc_resolv_conf "search cpanel.net\n" . "nameserver 208.74.121.50\n" . "nameserver 208.74.125.59\n";
     close($etc_resolv_conf);
     return;
@@ -814,7 +814,7 @@ sub configure_etc_hosts {
     # corrent /etc/hosts
     print_vms("Correcting /etc/hosts");
     open( my $fh, '>', '/etc/hosts' )
-        or return print_warn("Unable to modify /etc/hosts: $!");
+      or return print_warn("Unable to modify /etc/hosts: $!");
     print $fh "127.0.0.1    localhost localhost.localdomain localhost4 localhost4.localdomain4\n";
     print $fh "::1          localhost localhost.localdomain localhost6 localhost6.localdomain6\n";
     print $fh "$local_ip    $short_hn $hn\n";
@@ -1310,7 +1310,7 @@ sub disable_ea4_experimental {
 
         print_vms("Installed and disabled EA4-experimental repository");
 
-        open( my $read, '<', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
+        open( my $read,  '<', '/etc/yum.repos.d/EA4-experimental.repo' )        or die $!;
         open( my $write, '>', '/etc/yum.repos.d/EA4-experimental.repo.vmstmp' ) or die $!;
 
         while (<$read>) {
