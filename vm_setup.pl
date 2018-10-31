@@ -22,7 +22,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.3';
+my $VERSION = '2.0.4';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -331,7 +331,7 @@ sub process_output {
         }
     }
 
-    return;
+    return 1;
 }
 
 # logs the output of the system call
@@ -373,7 +373,7 @@ sub print_formatted {
 
     return 0 if not process_output(@output);
 
-    return;
+    return 1;
 }
 
 # takes a command to make a system call with as an argument
@@ -421,7 +421,7 @@ sub system_formatted {
     }
 
     else {
-        return;
+        return 1;
     }
 }
 
@@ -858,7 +858,7 @@ sub create_account {
 
     $rndpass = _genpw();
 
-    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited reseller=$is_reseller owner=$owner") and not exists $opts{force} ) {
+    if ( not system_formatted("/usr/local/cpanel/bin/whmapi1 createacct username=$user domain=$user.tld password=$rndpass maxpark=unlimited maxaddon=unlimited hasshell=1 reseller=$is_reseller owner=$owner") and not exists $opts{force} ) {
         print_warn("Failed to create account: $user.tld");
         return;
     }
@@ -879,7 +879,7 @@ sub create_primary_account {
     # create test account
     print_vms("Creating test account - cptest");
     $rndpass = _genpw();
-    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " pkgname=my_package savepgk=1 maxpark=unlimited maxaddon=unlimited" ) and not exists $opts{force} ) {
+    if ( not system_formatted( "/usr/local/cpanel/bin/whmapi1 createacct username=cptest domain=cptest.tld password=" . $rndpass . " maxpark=unlimited maxaddon=unlimited hasshell=1" ) and not exists $opts{force} ) {
         print_warn(q[Failed to create primary account (cptest.tld), skipping additional configurations for the account]);
         return;
     }
