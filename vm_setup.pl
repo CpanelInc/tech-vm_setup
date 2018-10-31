@@ -122,6 +122,7 @@ sub run {
     configure_mainip($natip);
     configure_whostmgrft();    # this is really just touching the file in order to skip initial WHM setup
     disable_feature_showcase();
+    accept_eula();
     configure_etc_hosts( $hostname, $ip );
 
     append_history_options_to_bashrc();
@@ -197,6 +198,7 @@ sub run {
 # configure_mainip() - ensure '/var/cpanel/mainip' has proper contents
 # configure_whostmgrft() - touch '/etc/.whostmgrft' to skip initial WHM setup
 # disable_feature_showcase() - touch '/var/cpanel/activate/features/disable_feature_showcase' to disable the feature showcase
+# accept_eula() - new API call allows for accepting the EULA, use this to accept it:  https://documentation.cpanel.net/display/DD/WHM+API+1+Functions+-+accept_eula
 # configure_wwwacct_conf() - ensure '/etc/wwwacct.conf' has proper contents
 # configure_etc_hosts() - ensure '/etc/hosts' has proper contents
 # add_custom_bashrc_to_bash_profile() - append command to '/etc/.bash_profile' that changes source to https://ssp.cpanel.net/aliases/aliases.txt upon login
@@ -755,6 +757,7 @@ sub configure_mainip {
 
 # touches '/var/cpanel/activate/features/disable_feature_showcase'
 sub disable_feature_showcase {
+    print_vms("Disabling feature showcase");
     _create_touch_file('/var/cpanel/activate/features/disable_feature_showcase');
     return;
 }
@@ -1325,5 +1328,15 @@ sub disable_ea4_experimental {
 
         rename( '/etc/yum.repos.d/EA4-experimental.repo.vmstmp', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
     }
+    return;
+}
+
+# makes a whmapi1 call in order to accept the EULA
+# introduced in v76
+# https://documentation.cpanel.net/display/DD/WHM+API+1+Functions+-+accept_eula
+sub accept_eula {
+
+    print_vms("Accepting EULA");
+    system_formatted("/usr/local/cpanel/bin/whmapi1 accept_eula");
     return;
 }
