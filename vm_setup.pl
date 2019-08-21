@@ -27,7 +27,7 @@ my $VERSION = '2.0.4';
 # declare variables for script options and handle them
 my @bashurl;
 my %opts = ( 'bashurl' => \@bashurl );
-GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s' )
+GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s', 'csf' )
   or die($!);
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
@@ -1022,6 +1022,34 @@ sub solr_option {
     return;
 }
 
+# install CSF
+sub csf_option {
+
+    my $answer = 0;
+
+    if ( exists $opts{csf} ) {
+        $answer = 'y';
+    }
+    else {
+        $answer = 'n';
+    }
+    if ( $answer eq "y" ) {
+        print_vms("Installing CSF");
+        chdir "/usr/src" || print_warn("ERROR: Unable to cd to /usr/src");
+        system_formatted('wget https://download.configserver.com/csf.tgz');
+        if (-e '/usr/src/csf.tgz') {
+            system_formatted('tar -xf csf.tgz') || print_warn("Unable to extract csf.tgz");
+            chdir "csf" || print_warn("Unable to cd to /usr/src/csf");
+            system_formatted('sh install.sh') || print_warn("Unable to run CSF install.sh");
+        }
+        else {
+            print_warn("Unable to download CSF");
+        }
+    }
+
+    return;
+}
+
 sub quotas_option {
 
     my $answer = 0;
@@ -1067,6 +1095,7 @@ sub handle_additional_options {
     solr_option();
     quotas_option();
     pdns_option();
+    csf_option();
 
     return;
 }
