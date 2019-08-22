@@ -21,7 +21,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.4';
+my $VERSION = '2.0.5';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -430,9 +430,9 @@ sub system_formatted {
 # generate 25 digit alphanumeric password and return the pw
 sub _genpw {
 
-    my @chars = ('a'..'z', 'A'..'Z', '0'..'9');
-    my $randpass = join '', map $chars[rand @chars], 0..24;
-    return $randpass
+    my @chars = ( 'a' .. 'z', 'A' .. 'Z', '0' .. '9' );
+    my $randpass = $chars[ rand @chars ], 0 .. 24;
+    return $randpass;
 }
 
 # appends argument(s) to the end of /etc/motd
@@ -1037,10 +1037,10 @@ sub csf_option {
         print_vms('Installing CSF');
         chdir '/usr/src' || print_warn('ERROR: Unable to cd to /usr/src');
         system_formatted('wget https://download.configserver.com/csf.tgz');
-        if (-e '/usr/src/csf.tgz') {
+        if ( -e '/usr/src/csf.tgz' ) {
             system_formatted('tar -xf csf.tgz') || print_warn('Unable to extract csf.tgz');
-            chdir 'csf' || print_warn('Unable to cd to /usr/src/csf');
-            system_formatted('sh install.sh') || print_warn('Unable to run CSF install.sh');
+            chdir 'csf'                         || print_warn('Unable to cd to /usr/src/csf');
+            system_formatted('sh install.sh')   || print_warn('Unable to run CSF install.sh');
         }
         else {
             print_warn('Unable to download CSF');
