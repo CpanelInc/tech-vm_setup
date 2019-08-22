@@ -1031,19 +1031,19 @@ sub csf_option {
         $answer = 'y';
     }
     else {
-        $answer = 'n';
+        $answer = get_answer('would you like to install CSF? [n]: ');
     }
-    if ( $answer eq "y" ) {
-        print_vms("Installing CSF");
-        chdir "/usr/src" || print_warn("ERROR: Unable to cd to /usr/src");
+    if ( $answer eq 'y' ) {
+        print_vms('Installing CSF');
+        chdir '/usr/src' || print_warn('ERROR: Unable to cd to /usr/src');
         system_formatted('wget https://download.configserver.com/csf.tgz');
         if (-e '/usr/src/csf.tgz') {
-            system_formatted('tar -xf csf.tgz') || print_warn("Unable to extract csf.tgz");
-            chdir "csf" || print_warn("Unable to cd to /usr/src/csf");
-            system_formatted('sh install.sh') || print_warn("Unable to run CSF install.sh");
+            system_formatted('tar -xf csf.tgz') || print_warn('Unable to extract csf.tgz');
+            chdir 'csf' || print_warn('Unable to cd to /usr/src/csf');
+            system_formatted('sh install.sh') || print_warn('Unable to run CSF install.sh');
         }
         else {
-            print_warn("Unable to download CSF");
+            print_warn('Unable to download CSF');
         }
     }
 
