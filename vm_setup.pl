@@ -27,7 +27,7 @@ my $VERSION = '2.0.4';
 # declare variables for script options and handle them
 my @bashurl;
 my %opts = ( 'bashurl' => \@bashurl );
-GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s' )
+GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s', 'csf' )
   or die($!);
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
@@ -186,6 +186,7 @@ sub run {
 # check_license() - perform a cPanel license check and die if it does not succeed
 # handle_lock_file() - exit if lock file exists and --force is not passed, otherwise, create lock file
 # handle_additional_options() - the script user has the option to install additional software such as clam, this script handles those options
+# csf_option() - install CSF if --csf is passed
 # clam_and_munin_options() - offer to install clamav and munin and install them if the user desires
 # solr_option() - offer to install solr and install it if the user desires
 # quotas_option() - offer to enable quotas and run fixquotas if the user desires
@@ -496,6 +497,7 @@ sub print_help_and_exit {
     print_status("--solr:  install Solr regardless of --fast/--skip option being passed");
     print_status("--quota:  enable quotas regardless of --fast/--skip option being passed");
     print_status("--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed");
+    print_status("--csf:  install CSF");
     print "\n";
     print_info("--skiphostname and --hostname=\$hostname are mutually exclusive");
     print_info("--fast and --full arguments are mutually exclusive");
@@ -1022,6 +1024,34 @@ sub solr_option {
     return;
 }
 
+# install CSF
+sub csf_option {
+
+    my $answer = 0;
+
+    if ( exists $opts{csf} ) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer('would you like to install CSF? [n]: ');
+    }
+    if ( $answer eq 'y' ) {
+        print_vms('Installing CSF');
+        chdir '/usr/src' || print_warn('ERROR: Unable to cd to /usr/src');
+        system_formatted('wget https://download.configserver.com/csf.tgz');
+        if (-e '/usr/src/csf.tgz') {
+            system_formatted('tar -xf csf.tgz') || print_warn('Unable to extract csf.tgz');
+            chdir 'csf' || print_warn('Unable to cd to /usr/src/csf');
+            system_formatted('sh install.sh') || print_warn('Unable to run CSF install.sh');
+        }
+        else {
+            print_warn('Unable to download CSF');
+        }
+    }
+
+    return;
+}
+
 sub quotas_option {
 
     my $answer = 0;
@@ -1067,6 +1097,7 @@ sub handle_additional_options {
     solr_option();
     quotas_option();
     pdns_option();
+    csf_option();
 
     return;
 }
