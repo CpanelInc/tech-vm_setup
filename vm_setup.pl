@@ -186,6 +186,7 @@ sub run {
 # check_license() - perform a cPanel license check and die if it does not succeed
 # handle_lock_file() - exit if lock file exists and --force is not passed, otherwise, create lock file
 # handle_additional_options() - the script user has the option to install additional software such as clam, this script handles those options
+# csf_option() - install CSF if --csf is passed
 # clam_and_munin_options() - offer to install clamav and munin and install them if the user desires
 # solr_option() - offer to install solr and install it if the user desires
 # quotas_option() - offer to enable quotas and run fixquotas if the user desires
@@ -496,6 +497,7 @@ sub print_help_and_exit {
     print_status("--solr:  install Solr regardless of --fast/--skip option being passed");
     print_status("--quota:  enable quotas regardless of --fast/--skip option being passed");
     print_status("--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed");
+    print_status("--csf:  install CSF");
     print "\n";
     print_info("--skiphostname and --hostname=\$hostname are mutually exclusive");
     print_info("--fast and --full arguments are mutually exclusive");
