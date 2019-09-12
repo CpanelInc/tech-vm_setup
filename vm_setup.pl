@@ -10,7 +10,6 @@ use Getopt::Long;
 use Fcntl;
 use IO::Handle;
 use IO::Select;
-use String::Random;
 use IPC::Open3;
 use Term::ANSIColor qw(:constants);
 
@@ -22,7 +21,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.4';
+my $VERSION = '2.0.5';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -428,13 +427,12 @@ sub system_formatted {
     }
 }
 
-# use String::Random to generate 25 digit password
-# only use alphanumeric chars in pw
-# return the pw
+# generate 25 digit alphanumeric password and return the pw
 sub _genpw {
 
-    my $gen = String::Random->new();
-    return $gen->randregex('\w{25}');
+    my @chars = ( 'a' .. 'z', 'A' .. 'Z', '0' .. '9' );
+    my $randpass = $chars[ rand @chars ], 0 .. 24;
+    return $randpass;
 }
 
 # appends argument(s) to the end of /etc/motd
@@ -520,7 +518,7 @@ sub print_help_and_exit {
     print_status("- Sets unlimited bash history");
     print_status("- Creates /root/.bash_profile with helpful aliases");
     print_status("- This includes a script that will allow for git auto-completion");
-    print_status("- Installs ClamAV, Munin, and Solr (optional)");
+    print_status("- Installs ClamAV, Munin, and Solr, and CSF (optional)");
     print_status("- Switches the nameserver to PowerDNS (optional)");
     exit;
 }
@@ -1039,10 +1037,10 @@ sub csf_option {
         print_vms('Installing CSF');
         chdir '/usr/src' || print_warn('ERROR: Unable to cd to /usr/src');
         system_formatted('wget https://download.configserver.com/csf.tgz');
-        if (-e '/usr/src/csf.tgz') {
+        if ( -e '/usr/src/csf.tgz' ) {
             system_formatted('tar -xf csf.tgz') || print_warn('Unable to extract csf.tgz');
-            chdir 'csf' || print_warn('Unable to cd to /usr/src/csf');
-            system_formatted('sh install.sh') || print_warn('Unable to run CSF install.sh');
+            chdir 'csf'                         || print_warn('Unable to cd to /usr/src/csf');
+            system_formatted('sh install.sh')   || print_warn('Unable to run CSF install.sh');
         }
         else {
             print_warn('Unable to download CSF');
