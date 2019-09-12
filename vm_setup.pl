@@ -426,7 +426,7 @@ sub system_formatted {
 sub _genpw {
 
     my @chars = ( 'a' .. 'z', 'A' .. 'Z', '0' .. '9' );
-    my $randpass = $chars[ rand @chars ], 0 .. 24;
+    my $randpass = join '', map $chars[rand @chars], 0..24;
     return $randpass;
 }
 
