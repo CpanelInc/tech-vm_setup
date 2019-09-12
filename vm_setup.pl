@@ -127,11 +127,6 @@ sub run {
     append_history_options_to_bashrc();
     add_custom_bashrc_to_bash_profile();
 
-    # set env variable
-    # I am not entirely sure what we need this for or if it is even needed
-    # leaving for now but will need to be reevaluated in later on
-    local $ENV{'REMOTE_USER'} = 'root';
-
     # ensure mysql is running and accessible before creating account
     set_local_mysql_root_password();
 
