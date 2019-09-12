@@ -21,7 +21,7 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.5';
+my $VERSION = '2.0.6';
 
 # declare variables for script options and handle them
 my @bashurl;
@@ -426,7 +426,7 @@ sub system_formatted {
 sub _genpw {
 
     my @chars = ( 'a' .. 'z', 'A' .. 'Z', '0' .. '9' );
-    my $randpass = $chars[ rand @chars ], 0 .. 24;
+    my $randpass = join '', map { $chars[ rand @chars ] } 0 .. 24;
     return $randpass;
 }
 
@@ -872,8 +872,6 @@ sub create_primary_account {
 
     my $rndpass;
 
-    add_motd( "one-liner for access to WHM root access:\n", q(USER=root; IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=$USER service=whostmgrd | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2087$URL"), "\n" );
-
     # create test account
     print_vms("Creating test account - cptest");
     $rndpass = _genpw();
@@ -882,12 +880,12 @@ sub create_primary_account {
         return;
     }
 
-    add_motd( "one-liner for access to cPanel user: cptest\n", q(USER=cptest; IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=$USER service=cpaneld | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2083$URL"), "\n" );
+    add_motd( "one-liner for access to cPanel user: cptest\n", q(/usr/local/cpanel/bin/whmapi1 create_user_session user=cptest service=cpaneld | grep "url:" | sed -n -e 's/^.*url: //p'), "\n" );
 
     print_vms("Creating test email - testing\@cptest.tld");
     $rndpass = _genpw();
     system_formatted( "/usr/local/cpanel/bin/uapi --user=cptest Email add_pop email=testing\@cptest.tld password=" . $rndpass );
-    add_motd( "one-liner for access to test email account: testing\@cptest.tld\n", q(USER='testing@cptest.tld'; IP=$(awk '{print$2}' /var/cpanel/cpnat); URL=$(whmapi1 create_user_session user=$USER service=webmaild | awk '/url:/ {match($2,"/cpsess.*",URL)}END{print URL[0]}'); echo "https://$IP:2096$URL"), "\n" );
+    add_motd( "one-liner for access to test email account: testing\@cptest.tld\n", q(/usr/local/cpanel/bin/whmapi1 create_user_session user=testing@cptest.tld service=webmaild | grep "url:" | sed -n -e 's/^.*url: //p'), "\n" );
 
     print_vms("Creating test database - cptest_testdb");
     system_formatted("/usr/local/cpanel/bin/uapi --user=cptest Mysql create_database name=cptest_testdb");
