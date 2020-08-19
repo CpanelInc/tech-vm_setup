@@ -21,12 +21,12 @@ if ( $< != 0 ) {
     die "VMS must be run as root\n";
 }
 
-my $VERSION = '2.0.6';
+my $VERSION = '2.0.7';
 
 # declare variables for script options and handle them
 my @bashurl;
 my %opts = ( 'bashurl' => \@bashurl );
-GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'quota', 'pdns', 'bashurl=s', 'csf' )
+GetOptions( \%opts, 'help', 'verbose', 'full', 'fast', 'force', 'skipyum', 'skiphostname', 'hostname=s', 'tier=s', 'skip', 'clam', 'munin', 'solr', 'ea4x', 'quota', 'pdns', 'bashurl=s', 'csf' )
   or die($!);
 
 # --skip should be a shortcut for --fast --skipyum and --skiphostname
@@ -200,7 +200,6 @@ sub run {
 # append_history_options_to_bashrc() - append options to '/root/.bashrc' so that we have unlimited bash history
 # create_vms_log_file() - creates the scripts log file
 # append_vms_log() - appends a line (given as argument) to the scripts log file
-# disable_ea4_experimental() - disables the ea4-experimental repository if yum succeeds in install_packages()
 #
 #
 # process_output() - processes the output of syscalls passed to system_formatted()
@@ -407,10 +406,6 @@ sub system_formatted {
             print_warn("Some yum modules may have failed to install, check log for detail");
         }
 
-        # yum completed successfully
-        else {
-            disable_ea4_experimental();
-        }
     }
 
     if ( not $retval ) {
@@ -491,6 +486,7 @@ sub print_help_and_exit {
     print_status("--quota:  enable quotas regardless of --fast/--skip option being passed");
     print_status("--pdns:  switch nameserver to PowerDNS regardless of --fast/--skip option being passed");
     print_status("--csf:  install CSF");
+    print_status("--ea4x: install ea4-experimental repository");
     print "\n";
     print_info("--skiphostname and --hostname=\$hostname are mutually exclusive");
     print_info("--fast and --full arguments are mutually exclusive");
@@ -498,7 +494,6 @@ sub print_help_and_exit {
     print_header("Full list of things this does:");
     print "-------------- \n";
     print_status("- Installs common/useful packages");
-    print_status("- Install the ea4-experimental repository and disables it");
     print_status("- Sets hostname");
     print_status("- Updates /var/cpanel/cpanel.config (Tweak Settings)");
     print_status("- Performs basic setup wizard");
@@ -513,7 +508,7 @@ sub print_help_and_exit {
     print_status("- Sets unlimited bash history");
     print_status("- Creates /root/.bash_profile with helpful aliases");
     print_status("- This includes a script that will allow for git auto-completion");
-    print_status("- Installs ClamAV, Munin, and Solr, and CSF (optional)");
+    print_status("- Installs ClamAV, Munin, Solr, CSF, and ea4-experimental repository (optional)");
     print_status("- Switches the nameserver to PowerDNS (optional)");
     exit;
 }
@@ -697,11 +692,10 @@ sub install_packages {
 
     # install useful yum packages
     # added perl-CDB_FILE to be installed through yum instead of cpanm
-    # per request, enabling the ea4-experimental repo
     # adding git-extras to help automate some git tasks:  https://github.com/tj/git-extras
-    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental git-extras perl-Net-DNS ] (this may take a couple minutes)");
+    print_vms("Installing utilities via yum [ mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON git-extras perl-Net-DNS ] (this may take a couple minutes)");
     ensure_working_rpmdb();
-    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON ea4-experimental git-extras perl-Net-DNS');
+    system_formatted('/usr/bin/yum -y install mtr nmap telnet nc vim s3cmd bind-utils pwgen jwhois git moreutils tmux rpmrebuild rpm-build gdb perl-CDB_File perl-JSON git-extras perl-Net-DNS');
 
     return;
 }
@@ -1015,6 +1009,25 @@ sub solr_option {
     return;
 }
 
+# offer to install ea4-experimental repo
+sub ea4_option {
+
+    my $answer = 0;
+
+    if ( exists $opts{ea4x} ) {
+        $answer = 'y';
+    }
+    else {
+        $answer = get_answer("would you like to install the ea4-experimental repository? [n]: ");
+    }
+    if ( $answer eq "y" ) {
+        print_vms("Installing ea4-experimental repository");
+        system_formatted('/usr/bin/yum -y install ea4-experimental');
+    }
+
+    return;
+}
+
 # install CSF
 sub csf_option {
 
@@ -1086,6 +1099,7 @@ sub handle_additional_options {
 
     clam_and_munin_options();
     solr_option();
+    ea4_option();
     quotas_option();
     pdns_option();
     csf_option();
@@ -1322,34 +1336,6 @@ sub configure_etc_cpupdate_conf {
     print $fh "UPDATES=daily\n";
     close($fh);
 
-    return;
-}
-
-# disable the ea4-experimental repository
-# only should be ran if yum install succeeds
-sub disable_ea4_experimental {
-    if ( -e '/etc/yum.repos.d/EA4-experimental.repo' ) {
-
-        print_vms("Installed and disabled EA4-experimental repository");
-
-        open( my $read,  '<', '/etc/yum.repos.d/EA4-experimental.repo' )        or die $!;
-        open( my $write, '>', '/etc/yum.repos.d/EA4-experimental.repo.vmstmp' ) or die $!;
-
-        while (<$read>) {
-            if ( $_ =~ /^enabled/ ) {
-                print $write "enabled=0\n";
-            }
-
-            else {
-                print $write $_;
-            }
-        }
-
-        close $read;
-        close $write;
-
-        rename( '/etc/yum.repos.d/EA4-experimental.repo.vmstmp', '/etc/yum.repos.d/EA4-experimental.repo' ) or die $!;
-    }
     return;
 }
 
